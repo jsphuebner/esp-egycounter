@@ -1,0 +1,121 @@
+/*
+ * This file is part of the esp8266 web interface
+ *
+ * Copyright (C) 2018 Johannes Huebner <dev@johanneshuebner.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+var busy = false;
+
+function refresh()
+{
+	busy = true;
+	inverter.getParamList(function(reply) 
+		{ 
+			var divs = Array.from(document.querySelectorAll("div.slidediv"));
+			params = reply 
+			setInterval(updateSpotValues, 500);
+			setInterval(updateSliders, 1500);
+			
+			divs.forEach(div => {
+				if (getValue("opmode") == div.dataset.opmodes)
+				{
+					div.style.display = "inherit";
+				}
+			});
+
+			busy = false;
+		});
+}
+
+function getValue(name)
+{
+	if (params[name].enums)
+		return params[name].enums[params[name].value];
+	else
+		return params[name].value;
+}
+
+function getUnit(name)
+{
+	if (params[name].enums)
+		return "";
+	else
+		return params[name].unit;
+}
+
+function setBusy()
+{
+	busy = true;
+}
+
+function updateFromSlider(slider)
+{
+	var value = slider.value;
+	var id = slider.id;
+	var gain = slider.dataset.gain;
+	var text = document.querySelectorAll("span#" + id);
+
+	if (slider.dataset.logscale)
+	{
+		var min = Math.log(slider.min || 1);
+		var max = Math.log(slider.max || 100000);
+	    var scale = (max - min) / (slider.max - slider.min);
+		value = Math.round(Math.exp((value - slider.min) * scale + min));
+	}
+	text[0].innerText = value;
+	var cmd = "set " + id + " " + value * (gain ? gain : 1);
+
+	busy = true;
+	inverter.sendCmd(cmd, function(reply) { busy = false; });
+}
+
+function updateSliders()
+{
+	var sliders = Array.from(document.querySelectorAll("input[type=range]"));
+	var names = sliders.map(x => x.id);
+
+	inverter.getValues(names, 1, values => {
+		if (!busy)
+		{
+			sliders.forEach(item => {
+			if (item.value != values[item.id][0])
+			{
+				if (item.dataset.logscale)
+				{
+					var min = Math.log(item.min || 1);
+					var max = Math.log(item.max || 100000);
+					var scale = (max - min) / (item.max - item.min);
+					item.value = parseInt(item.min) + (Math.log(values[item.id][0]) - min) / scale;
+				}
+				else
+				{
+					item.value = values[item.id][0];
+				}
+				document.querySelectorAll("span#" + item.id)[0].innerText = values[item.id][0];
+			}});
+		}
+	});	
+}
+
+function updateSpotValues()
+{
+	var spots = Array.from(document.querySelectorAll("span.spotvalue"));
+	var names = spots.map(x => x.id);
+	
+	inverter.getValues(names, 1, values => {
+		spots.forEach(item => item.innerText = (values[item.id][0] - (item.dataset.offset ?? 0)) + " " + getUnit(item.id));
+	});
+}
