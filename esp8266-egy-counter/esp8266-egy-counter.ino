@@ -76,27 +76,27 @@ void GetCounterValues(CounterValues& v)
   Serial.readStringUntil('(');
   v.id = Serial.readStringUntil(')');
   Serial.readStringUntil('\n');
-
+  yield();
   Serial.readStringUntil('\n');
   Serial.readStringUntil('(');
   v.etotal = Serial.parseFloat();
   Serial.readStringUntil('\n');
-
+  yield();
   Serial.readStringUntil('(');
   v.ptotal = Serial.parseFloat();
   Serial.readStringUntil('\n');
-
+  yield();
   Serial.readStringUntil('(');
   v.pphase[0] = Serial.parseFloat();
   Serial.readStringUntil('\n');
-
+  yield();
   Serial.readStringUntil('(');
   v.pphase[1] = Serial.parseFloat();
   Serial.readStringUntil('\n');
-
+  yield();
   Serial.readStringUntil('(');
   v.pphase[2] = Serial.parseFloat();
-
+  yield();
   Serial.readStringUntil('!');
 }
 
@@ -310,7 +310,7 @@ void staCheck(){
 
 void setup(void){
   Serial.begin(9600, SERIAL_7E1);
-  Serial.setTimeout(500);
+  Serial.setTimeout(300);
   SPIFFS.begin();
 
   //WIFI INIT
@@ -318,6 +318,8 @@ void setup(void){
     enableWiFiAtBootTime();
   #endif  WiFi.mode(WIFI_AP_STA);
   WiFi.begin();
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(true);
   sta_tick.attach(10, staCheck);
   
   MDNS.begin("ebzclient");
@@ -361,7 +363,7 @@ void loop(void){
   WiFiClient client;
   HttpClient http(client, "johanneshuebner.com");
   String output;
-
+  yield();
   GetCounterValues(values);
   ValuesJson(output);
 
