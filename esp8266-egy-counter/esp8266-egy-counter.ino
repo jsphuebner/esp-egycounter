@@ -50,6 +50,8 @@
 #include <ArduinoOTA.h>
 #include <FS.h>
 #include <Ticker.h>
+#include "Adafruit_MQTT.h"
+#include "Adafruit_MQTT_Client.h"
 
 #define DBG_OUTPUT_PORT Serial
 
@@ -66,6 +68,9 @@ ESP8266HTTPUpdateServer updater;
 //holds the current upload
 File fsUploadFile;
 Ticker sta_tick;
+WiFiClient client;
+Adafruit_MQTT_Client mqtt(&client, "192.168.178.37", 1883);
+Adafruit_MQTT_Publish ebz = Adafruit_MQTT_Publish(&mqtt, "/ebz/readings");
 CounterValues values;
 
 void GetCounterValues(CounterValues& v)
@@ -356,18 +361,39 @@ void setup(void){
   server.begin();
   server.client().setNoDelay(1);
 }
+
+void MQTT_connect() {
+  int8_t ret;
+
+  // Stop if already connected.
+  if (mqtt.connected()) {
+    return;
+  }
+
+  uint8_t retries = 3;
+  while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
+       mqtt.disconnect();
+       delay(1000);  // wait 5 seconds
+       retries--;
+       if (retries == 0) {
+         // basically die and wait for WDT to reset me
+         return;
+       }
+  }
+}
  
 void loop(void){
   ArduinoOTA.handle();
 
-  WiFiClient client;
-  HttpClient http(client, "johanneshuebner.com");
   String output;
   yield();
   GetCounterValues(values);
   ValuesJson(output);
 
-  //see server-side/index.php on key assignment
-  http.get("/ebz/?key=<yourkey>&data=" + output);
   server.handleClient();
+
+  MQTT_connect();
+  char buffer[256];
+  output.toCharArray(buffer, sizeof(buffer));
+  ebz.publish(buffer);
 }
