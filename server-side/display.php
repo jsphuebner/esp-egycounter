@@ -42,8 +42,14 @@ foreach (array_reverse($sqlDrv->arrayQuery($sql)) as $row)
 }
 echo "};";
 
-$sql = "select sum(ptotal)/(1000*3600) from ebzdata where ptotal<0";
+$sql = "select sum(ptotal)/(1000*3600) from ebzdata where ptotal<0 and time > '2022-04-01'";
 $unused = $sqlDrv->scalarQuery($sql);
+$sql = "select sum(pl3)/(1000*3600) from ebzdata where time > '2022-04-01'";
+$ecar = $sqlDrv->scalarQuery($sql);
+$sql = "select sum(pbat)/(1000*3600) from ebzdata where pbat<0 and time > '2022-04-01'";
+$discharged = $sqlDrv->scalarQuery($sql);
+$sql = "select sum(pbat)/(1000*3600) from ebzdata where pbat>0 and time > '2022-04-01'";
+$charged = $sqlDrv->scalarQuery($sql);
 ?>
 </script>
 <script src="display.js" type="text/javascript"></script>
@@ -55,7 +61,11 @@ $unused = $sqlDrv->scalarQuery($sql);
 <p><b>P-L1</b> [W]<span class='value' id='pl1'></span>
 <p><b>P-L2</b> [W]<span class='value' id='pl2'></span>
 <p><b>P-L3</b> [W]<span class='value' id='pl3'></span>
-<p><b>PV ungenutzt</b> [kWh] <span class='value'><?php echo $unused ?></span>
+<p><b>P-Bat</b> [W] <span class='value' id="pbat"></span>
+<p><b>E-Bat Chg</b> [kWh] <span class='value' id="charged"><?php echo $charged ?></span>
+<p><b>E-Bat Dis</b> [kWh] <span class='value' id="discharged"><?php echo $discharged ?></span>
+<p><b>PV ungenutzt</b> [kWh] <span class='value' id="pvunused"><?php echo $unused ?></span>
+<p><b>E-Auto</b> [kWh] <span class='value' id="ecar"><?php echo $ecar ?></span>
 
 <p><canvas id="canvas" width=100 height=40></canvas>
 <p><canvas id="avgcanvas" width=100 height=40></canvas>

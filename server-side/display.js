@@ -37,6 +37,32 @@ function loadSpot()
 				span.innerText = values[item];
 		}
 		
+		if (values['ptotal'] < 0)
+		{
+			var span = document.getElementById("pvunused");
+			var value = parseFloat(span.innerText);
+			value += values['ptotal'] / (1000*3600);
+			span.innerText = value;
+		}
+		if (values['pbat'] < 0)
+		{
+			var span = document.getElementById("discharged");
+			var value = parseFloat(span.innerText);
+			value += values['pbat'] / (1000*3600);
+			span.innerText = value;
+		}
+		if (values['pbat'] > 0)
+		{
+			var span = document.getElementById("charged");
+			var value = parseFloat(span.innerText);
+			value += values['pbat'] / (1000*3600);
+			span.innerText = value;
+		}
+		var span = document.getElementById("ecar");
+		var value = parseFloat(span.innerText);
+		value += values['pl3'] / (1000*3600);
+		span.innerText = value;
+		
 		addToPlot(values);
 	}
 		
