@@ -10,7 +10,7 @@ def setChargePower(client, gridPower):
 	
 	solarpower = lastChargerPower - gridPower
 	
-	if lastInverterPower > 0:
+	if lastInverterPower > 10:
 		client.publish("/charger/setpoint/power", 0)
 	else:
 		client.publish("/charger/setpoint/power", max(0, solarpower - 10))
