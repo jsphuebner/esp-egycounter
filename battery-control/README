@@ -1,0 +1,5 @@
+To run these script you need paho-mqtt, serial und urllib3 for python
+
+Carefully check all scripts for sanity, e.g. voltage and power limits.
+
+Create a password and a hash for it as stated in index.php in the server-side directory. You can omit that step of everything runs locally.
