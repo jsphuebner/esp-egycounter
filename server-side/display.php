@@ -16,7 +16,34 @@ var avgdata = {};
 
 $_SESSION['allow'] = true;
 
-$sql = "SELECT time,etotal,ptotal,pl1,pl2,pl3 FROM ebzdata ORDER BY id DESC LIMIT 0, 1000";
+$last = $sqlDrv->scalarQuery("select max(time) from ebzdaily");
+$last = new DateTime($last);
+$start = $last->add(new DateInterval("PT1H"))->format('Y-m-d');
+$end = (new DateTime())->format('Y-m-d');
+
+$sql = "insert ignore into ebzdaily
+select
+	max(id) as id,
+	counter_id,
+	max(time) as time,
+	max(etotal) as etotal,
+	sum(if(ptotal>0, ptotal, 0))/(1000*3600) as etotalin,
+	sum(if(ptotal<0, ptotal, 0))/(1000*3600) as etotalout,
+	sum(pl1)/(1000*3600) as el1,
+	sum(pl2)/(1000*3600) as el2,
+	sum(pl3)/(1000*3600) as el3,
+	sum(if(pbat>0, pbat, 0))/(1000*3600) as ebatin,
+	sum(if(pbat<0, pbat, 0))/(1000*3600) as ebatout
+from
+	ebzdata
+where
+	time >= '$start' and time < '$end'
+group by
+	counter_id, SUBSTRING(time, 1, 10);";
+	
+$sqlDrv->query($sql);
+
+$sql = "SELECT time,etotal,ptotal,pl1,pl2,pl3,pbat FROM ebzdata ORDER BY id DESC LIMIT 0, 1000";
 
 foreach ($sqlDrv->arrayQuery($sql) as $row)
 {
@@ -42,14 +69,22 @@ foreach (array_reverse($sqlDrv->arrayQuery($sql)) as $row)
 }
 echo "};";
 
-$sql = "select sum(ptotal)/(1000*3600) from ebzdata where ptotal<0 and time > '2022-04-01'";
+$sql = "select sum(etotalout) from ebzdaily";
 $unused = $sqlDrv->scalarQuery($sql);
-$sql = "select sum(pl3)/(1000*3600) from ebzdata where time > '2022-04-01'";
+$sql = "select sum(ptotal)/(1000*3600) from ebzdata where ptotal<0 and time > '$end'";
+$unused += $sqlDrv->scalarQuery($sql);
+$sql = "select sum(el3) from ebzdaily";
 $ecar = $sqlDrv->scalarQuery($sql);
-$sql = "select sum(pbat)/(1000*3600) from ebzdata where pbat<0 and time > '2022-04-01'";
+$sql = "select sum(pl3)/(1000*3600) from ebzdata where time > '$end'";
+$ecar += $sqlDrv->scalarQuery($sql);
+$sql = "select sum(ebatout) from ebzdaily";
 $discharged = $sqlDrv->scalarQuery($sql);
-$sql = "select sum(pbat)/(1000*3600) from ebzdata where pbat>0 and time > '2022-04-01'";
+$sql = "select sum(pbat)/(1000*3600) from ebzdata where pbat<0 and time > '$end'";
+$discharged += $sqlDrv->scalarQuery($sql);
+$sql = "select sum(ebatin) from ebzdaily";
 $charged = $sqlDrv->scalarQuery($sql);
+$sql = "select sum(pbat)/(1000*3600) from ebzdata where pbat>0 and time > '$end'";
+$charged += $sqlDrv->scalarQuery($sql);
 ?>
 </script>
 <script src="display.js" type="text/javascript"></script>
@@ -69,17 +104,6 @@ $charged = $sqlDrv->scalarQuery($sql);
 
 <p><canvas id="canvas" width=100 height=40></canvas>
 <p><canvas id="avgcanvas" width=100 height=40></canvas>
-<?php
-exit();
-?>
-<table border=1>
-<tr><th>Timestamp</th><th>E-Total</th><th>P-Total</th><th>P-L1</th><th>P-L2</th><th>P-L3</th></tr>
-<?php
-$sql = "SELECT * FROM ebzdata WHERE time BETWEEN '$start' AND '$end'";
-$data = $sqlDrv->arrayQuery($sql);
 
-foreach ($data as $row)
-{
-	echo "<tr><td>" . $row['time'] . "</td><td>" . $row['etotal'] . "</td><td>" . $row['ptotal'] . "</td><td>" . $row['pl1'] . "</td><td>" . $row['pl2'] . "</td><td>" . $row['pl3'] . "</td></tr>";
-}?>
-</table>
+</body>
+</html>

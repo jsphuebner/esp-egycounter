@@ -14,18 +14,30 @@ create table ebzdata (
 );
 
 create index idx_ebz_time ON ebzdata(time);
+
+create table ebzdaily (
+	id int not null,
+    counter_id varchar(20) not null,
+    time datetime,
+    etotal float,
+    etotalin float,
+    etotalout float,
+    el1 float,
+    el2 float,
+    el3 float,
+    ebatin float,
+    ebatout float,
+    primary key (id)
+);
 */
 session_start();
-//minimalistic access cotrol
 
 if (!isset ($_SESSION['allow']))
 {
 	if (!isset($_GET['key']))
 		die("No key provided");
 
-	//Create with password_hash("yourpass", PASSWORD_DEFAULT)
-	$expectedHash = '...hash...';
-
+	//Create $expectedHash with password_hash("yourpass", PASSWORD_DEFAULT) and put it in config.inc.php
 	if (!password_verify ($_GET['key'] , $expectedHash))
 		die (-1);
 }
