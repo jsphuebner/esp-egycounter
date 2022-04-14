@@ -5,8 +5,6 @@ import paho.mqtt.client as mqtt
 	
 def setChargePower(client, gridPower):
 	global lastChargerPower
-	global chargerPower
-	global inverterPower
 	
 	solarpower = lastChargerPower - gridPower
 	

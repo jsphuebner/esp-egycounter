@@ -3,6 +3,9 @@
 import time, sys, serial
 import paho.mqtt.client as mqtt
 
+#Soyosource control found here
+#https://github.com/syssi/esphome-soyosource-gtn-virtual-meter/tree/main/components
+
 def on_message(client, serSoyo, msg):
 	bytes = [ 0x24, 0x56, 0x0, 0x21, 0x2, 0x00, 0x80, 0xE0 ]
 	
