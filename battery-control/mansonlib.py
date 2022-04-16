@@ -301,6 +301,19 @@ class InstrumentInterface:
 				return False
 			return False
 		return False
+	def RMode(self):
+		if type(self.sp) != type(None):
+			if sys.version > '3':
+				self.sp.write('SESS\r'.encode('ascii'))
+				response = self.sp.readline().decode('ascii')
+			else:
+				self.sp.write('SESS\r')
+				response = self.sp.readline()
+			if  response != '':
+				return response
+			else:
+				return False
+		return False
 	def Pset(self,num,volt,curr):
 		if type(self.sp) != type(None):
 			num_max = 3
@@ -510,6 +523,9 @@ class HCS(InstrumentInterface):
 	def GetOutputSetting(self,option):
 		"Get the seting voltage and current"
 		return self.GetSetting(option)
+	def SetRearMode(self):
+		"Set Rear mode, disable front buttons"
+		return self.RMode()
 	def SetPreset(self,num,volt,curr):
 		"setting the preset value in HCS"
 		return self.Pset(num,volt,curr)

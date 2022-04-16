@@ -49,6 +49,7 @@ while True:
 	try:
 		voltage = hcs.GetOutputReading('V')
 		current = hcs.GetOutputReading('C')
+		hcs.SetRearMode()
 		
 		if voltage == False:
 			voltage = 0

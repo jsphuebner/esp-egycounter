@@ -5,6 +5,8 @@ import paho.mqtt.client as mqtt
 	
 def setChargePower(client, gridPower):
 	global lastChargerPower
+	global chargerPower
+	global inverterPower
 	
 	solarpower = lastChargerPower - gridPower
 	
@@ -60,7 +62,7 @@ def on_message(client, userdata, msg):
 			return
 	elif msg.topic == "/charger/info/voltage":
 		chargerVoltage = float(msg.payload)
-		lastChargerVoltage = (chargerVoltage + lastChargerVoltage) / 2 #IIR Filter
+		lastChargerVoltage = (chargerVoltage + lastChargerVoltage * 3) / 4 #IIR Filter
 		client.publish("/battery/voltage", lastChargerVoltage)
 	elif msg.topic == "/charger/info/power":
 		chargerPower = float(msg.payload)
