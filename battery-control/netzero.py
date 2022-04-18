@@ -25,7 +25,7 @@ def setInverterPower(client, gridPower):
 	if powerSetpoint < maxInverterPower:
 		setInverterPower.errSum = setInverterPower.errSum + gridPower
 		
-	if powerSetpoint > 20 and lastChargerPower < 20 and lastChargerVoltage > 44.5:
+	if powerSetpoint > 20 and lastChargerPower < 20:
 		voltagePowerLimit = (lastChargerVoltage - 44) * 500
 		powerSetpoint = min(voltagePowerLimit, powerSetpoint)
 	else:
