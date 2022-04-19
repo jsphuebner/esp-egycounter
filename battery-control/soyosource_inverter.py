@@ -30,7 +30,7 @@ def queryStatus(ser):
 	for i in reply[1:14]:
 		sum = (sum - i) & 0xff
 	
-	if sum == reply[14]:
+	if len(reply) == 15 and sum == reply[14]:
 		return (True, reply[4], (reply[5]*256 + reply[6]) / 10, (reply[7]*256 + reply[8]) / 10, reply[10], reply[11] / 2, (reply[12]*256 + reply[13]) / 10 - 20)
 	else:
 		print("invalid checksum")
