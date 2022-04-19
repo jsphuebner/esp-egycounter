@@ -2,7 +2,7 @@ This project intends to maximize the energy usage from your solar array by stori
 To minimize hardware effort it uses the existing energy meter that is provided by your network operator.
 
 # Reading the energy flow
-This project build upon the common eBZ meter that is commonly found in Germany. Similar techniques apply to other meters.
+This project builds upon the common eBZ meter that is commonly found in Germany. Similar techniques apply to other meters.
 These meters provide an infrared port that sends out a serial data stream periodically. Many meters have an "info" and an "MSB" port, the latter sends out more information. But the info port can also be programmed to send out more information by entering a password, provided by your network operator.
 
 Most of all we are interested in total momentary power, anything else is optional. The eBZ meter outputs power in a 1 second interval. When taking energy from the grid power is positive, when putting it back into the grid it reads negative.
@@ -21,7 +21,7 @@ I put everything into a DIN rail enclosure and use a 5V DIN rail power supply to
 
 ![](images/cabinet.jpg)
 
-Finally you need to flash some software onto the ESP8266 that is found in the esp8266-egy-counter directory. Many tutorials out there how to achieve that with Arduino.
+Finally you need to flash some software onto the ESP8266 that is found in the esp8266-egy-counter directory. Many tutorials out there how to achieve that with Arduino. Then set it up to connect to your local Wifi hotspot.
 
 The ESP module provides its own web interface for debugging
 
