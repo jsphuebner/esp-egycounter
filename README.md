@@ -73,6 +73,8 @@ If you run a web server with a database you can deploy some simple php scripts p
 Python script submitToLogger.py sends the data to your web server via https. Again, web server is hard-coded, please adjust. I use a static key for minimalistic access control that is sent along with the data every time. The server only stores a hash of that key. Please set this up in config.inc.php
 The script sends the counter data from above and merges battery power into the JSON blob as well.
 
+![](images/web-interface.png)
+
 # Disclaimer
 As always things I present are somewhat dangerous and you repeat them at your own risk. In terms of safety the system has some shortcomings
 - It is located in the living area in a wooden desk
