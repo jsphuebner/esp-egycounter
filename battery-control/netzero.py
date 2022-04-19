@@ -58,7 +58,7 @@ def on_message(client, userdata, msg):
 			setInverterPower(client, lastGridPower)
 		except ValueError:
 			return
-	elif msg.topic == "/inverter/info/voltage":
+	elif msg.topic == "/inverter/info/udc":
 		batteryVoltage = float(msg.payload)
 		lastBatteryVoltage = (batteryVoltage + lastBatteryVoltage * 3) / 4 #IIR Filter
 		client.publish("/battery/voltage", lastBatteryVoltage)
@@ -78,8 +78,8 @@ client.on_message = on_message
 client.connect("localhost", 1883, 60)
 client.subscribe("/ebz/readings")
 client.subscribe("/charger/info/maxpower")
-client.subscribe("/charger/info/voltage")
 client.subscribe("/charger/info/power")
+client.subscribe("/inverter/info/udc")
 client.subscribe("/inverter/info/power")
 client.subscribe("/inverter/info/maxpower")
 
