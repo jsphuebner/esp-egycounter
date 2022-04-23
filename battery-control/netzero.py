@@ -23,7 +23,12 @@ def setInverterPower(client, gridPower):
 	if powerSetpoint < maxInverterPower:
 		setInverterPower.errSum = setInverterPower.errSum + gridPower
 		
-	if powerSetpoint > 20 and lastChargerPower < 20:
+	if lastBatteryVoltage <= 44:
+		setInverterPower.uvlo = True
+	elif lastBatteryVoltage > 45:
+		setInverterPower.uvlo = False
+		
+	if powerSetpoint > 20 and lastChargerPower < 20 and not setInverterPower.uvlo:
 		voltagePowerLimit = (lastBatteryVoltage - 44) * 500
 		powerSetpoint = min(voltagePowerLimit, powerSetpoint)
 	else:
@@ -79,9 +84,9 @@ client.connect("localhost", 1883, 60)
 client.subscribe("/ebz/readings")
 client.subscribe("/charger/info/maxpower")
 client.subscribe("/charger/info/power")
-client.subscribe("/inverter/info/udc")
 client.subscribe("/inverter/info/power")
 client.subscribe("/inverter/info/maxpower")
+client.subscribe("/inverter/info/udc")
 
 client.publish("/charger/setpoint/voltage", 52.6)
 
@@ -92,6 +97,7 @@ lastGridPower = 0
 lastBatteryVoltage = 0
 
 setInverterPower.errSum = 0
+setInverterPower.uvlo = False
 
 client.loop_forever()
 
