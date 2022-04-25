@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import time, sys, mansonlib
+import time, sys, mansonlib, json
 import paho.mqtt.client as mqtt
 
 def on_message(client, hcs, msg):
@@ -18,8 +18,11 @@ def on_message(client, hcs, msg):
 		sys.stdout.flush()
 		powerTimeout = 20
 
+with open("config.json") as configFile:
+	config = json.load(configFile)
+
 hcs=mansonlib.HCS()
-hcs.OpenPort('/dev/ttyUSB1')
+hcs.OpenPort(config['charger']['tty'])
 maxVoltage = False
 maxCurrent = False
 voltage = 0

@@ -14,22 +14,23 @@ def setChargePower(client, gridPower):
 		client.publish("/charger/setpoint/power", max(0, solarpower - 10))
 	
 def setInverterPower(client, gridPower):
+	global config
 	global lastBatteryVoltage
 	global lastChargerPower
 	global maxInverterPower
 
-	powerSetpoint = gridPower + setInverterPower.errSum / 5				
+	powerSetpoint = gridPower * config['netzero']['powerkp'] + setInverterPower.errSum * config['netzero']['powerki']				
 
 	if powerSetpoint < maxInverterPower:
 		setInverterPower.errSum = setInverterPower.errSum + gridPower
 		
-	if lastBatteryVoltage <= 44:
+	if lastBatteryVoltage <= config['netzero']['uvlothresh']:
 		setInverterPower.uvlo = True
-	elif lastBatteryVoltage > 45:
+	elif lastBatteryVoltage > config['netzero']['uvlohyst']:
 		setInverterPower.uvlo = False
 		
 	if powerSetpoint > 20 and lastChargerPower < 20 and not setInverterPower.uvlo:
-		voltagePowerLimit = (lastBatteryVoltage - 44) * 500
+		voltagePowerLimit = (lastBatteryVoltage - config['netzero']['uvlothresh']) * config['netzero']['voltagekp']
 		powerSetpoint = min(voltagePowerLimit, powerSetpoint)
 	else:
 		powerSetpoint = 0
@@ -48,13 +49,14 @@ def publishBatteryPower(client):
 
 
 def on_message(client, userdata, msg):
+	global config
 	global lastChargerPower
 	global lastBatteryVoltage
 	global lastInverterPower
 	global maxInverterPower
 	global lastGridPower
 
-	if msg.topic == "/ebz/readings":
+	if msg.topic == config['meter']['topic']:
 		try:
 			data = json.loads(msg.payload)
 			ptotal = data['ptotal']
@@ -77,18 +79,21 @@ def on_message(client, userdata, msg):
 		publishBatteryPower(client)
 	elif msg.topic == "/inverter/info/maxpower":
 		maxInverterPower = float(msg.payload)
+
+with open("config.json") as configFile:
+	config = json.load(configFile)
 	
 client = mqtt.Client("netZeroController")
 client.on_message = on_message
 client.connect("localhost", 1883, 60)
-client.subscribe("/ebz/readings")
+client.subscribe(config['meter']['topic'])
 client.subscribe("/charger/info/maxpower")
 client.subscribe("/charger/info/power")
 client.subscribe("/inverter/info/power")
 client.subscribe("/inverter/info/maxpower")
 client.subscribe("/inverter/info/udc")
 
-client.publish("/charger/setpoint/voltage", 52.6)
+client.publish("/charger/setpoint/voltage", config['netzero']['chargevoltage'])
 
 maxInverterPower = 0
 lastChargerPower = 0

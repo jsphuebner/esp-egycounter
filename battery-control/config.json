@@ -1,0 +1,24 @@
+{
+	"meter": {
+		"topic": "/ebz/readings"
+	},
+	"inverter": {
+		"tty485": "/dev/ttyUSB0",
+		"ttyTTL": "/dev/ttyO4",
+		"maxpower": 900
+	},
+	"charger": {
+		"tty": "/dev/ttyUSB1"
+	},
+	"logger": {
+		"uri": "https://yourdomain.com/log/?key=<yourkey>&data="
+	},
+	"netzero": {
+		"uvlothresh": 44,
+		"uvlohyst": 45,
+		"voltagekp": 500,
+		"powerkp": 1,
+		"powerki": 0.2,
+		"chargevoltage": 52.6
+	}
+}
