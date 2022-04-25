@@ -34,7 +34,7 @@ Most of all though it sends JSON encoded counter data via MQTT to a hard-coded M
 So finally we need to setup some low power Linux computer that runs most of the remaining software. I use a BeagleBone that comes with Debian Linux. All scripts are python, a weird mix of python 2 and 3. You need python-serial and paho-mqtt for Python. Also the mosquitto MQTT broker. That is pretty much it. I have it located near my Ethernet switch to not have to rely on a wifi connection.
 
 # Charging the battery
-Now lets look into how we can put energy into out battery. I use an NMC battery that is well balanced and that I decided to run without BMS. That is not a brilliant idea and I don't recommend it and plan to change it. But somehow I have to explain the lack of any BMS communication in the scripts later. The battery has an easy SoC curve, it is 50.2V when full and about 40V when empty. By leaving some margin to these extremes I get away without the BMS.
+Now lets look into how we can put energy into our battery. I use an NMC battery that is well balanced and that I decided to run without BMS. That is not a brilliant idea and I don't recommend it and plan to change it. But somehow I have to explain the lack of any BMS communication in the scripts later. The battery has an easy SoC curve, it is 50.2V when full and about 40V when empty. By leaving some margin to these extremes I get away without the BMS.
 
 Ok, charging, finally. I use a Manson HCS-3604 switch mode power supply, rated 60V, 15A. You can use any switch mode supply you can get ahold of as long as it provides the correct voltage and sufficient power AND can be controlled externally.
 
@@ -47,7 +47,7 @@ When /charger/setpoint/power is not published two over 2s power is set to 0W by 
 So that's it, intelligence comes further down.
 
 # Discharging the battery
-Now of course at some point we want to get that energy back out from the battery and run out appliances with it. And that's what we need an inverter for. I use a Soyosource GTN1200 that can supply 900W AC. It also comes with various power levels and voltages, so pick an appropriate one for your battery. The GTN series is universal and can be used with PV cells and batteries. It comes configured for PV operation which needs to be changed. There is also some mimimum cutoff voltage which is a nice backup to our software logic.
+Now of course at some point we want to get that energy back out from the battery and run our appliances with it. And that's what we need an inverter for. I use a Soyosource GTN1200 that can supply 900W AC. It also comes with various power levels and voltages, so pick an appropriate one for your battery. The GTN series is universal and can be used with PV cells and batteries. It comes configured for PV operation which needs to be changed. There is also some mimimum cutoff voltage which is a nice backup to our software logic.
 
 It has an RS-485 interface that is normally connected to their own power sensing gadget but we interface via our python script. In addition it has a second serial port that is meant for a Wifi module. It looks like a USB port but is actually 5V, TX, RX, GND. I use this second interface for READING values because the RS485 port does not output any data on my device. It is a known bug.
 
@@ -58,11 +58,11 @@ When /inverter/setpoint/power is not published for over 5s power is set to 0 by 
 ![](images/inverter.jpg)
 
 # Tying it all together
-Finally script netzero.py makes sense of it all. It is "clocked" by the incoming messages from the power meter. If the meter reports energy going into the grid the script will ramp up the charger until no energy goes to the grid anymore. Likeways when energy is taken from the grid it will ramp up the inverter until no energy is taken from the grid anymore - within the inverters power limit of course.
+Finally script netzero.py makes sense of it all. It is "clocked" by the incoming messages from the power meter. If the meter reports energy going into the grid the script will ramp up the charger until no energy goes to the grid anymore. Likewise when energy is taken from the grid it will ramp up the inverter until no energy is taken from the grid anymore - within the inverters power limit of course.
 
 It also exports battery power in topic /battery/power . Negative when taking energy from the battery, otherwise positive.
 
-Inverter power is also governed by battery voltage. Power is ramped down to 0 is a given target is approached. Adjust the limits in config.json
+Inverter power is also governed by battery voltage. Power is ramped down to 0 as a given target is approached. Adjust the limits in config.json
 
 Since this storage system is AC coupled it can work with as many solar arrays as you like. For example I have 2 solar arrays and the battery can be charged from both. We loose some energy to conversion losses this way but are more flexible also in where we can put the storage system. It actually lives in my desk:
 
