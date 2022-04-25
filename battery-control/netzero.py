@@ -99,7 +99,7 @@ maxInverterPower = 0
 lastChargerPower = 0
 lastInverterPower = 0
 lastGridPower = 0
-lastBatteryVoltage = 0
+lastBatteryVoltage = config['netzero']['uvlohyst']
 
 setInverterPower.errSum = 0
 setInverterPower.uvlo = False
