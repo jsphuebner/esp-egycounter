@@ -47,7 +47,7 @@ When /charger/setpoint/power is not published two over 2s power is set to 0W by 
 So that's it, intelligence comes further down.
 
 # Discharging the battery
-Now of course at some point we want to get that energy back out from the battery and run out appliances with it. And that's what we need an inverter for. I use a Soyosource GTN1200 that can supply 900W AC. It also comes with various power levels and voltages, so pick an appropriate one for your battery. So GTN series is universal and can be used with PV cells and batteries. It comes configured for PV operation which needs to be changed. There is also some mimimum cutoff voltage which is a nice backup to our software logic.
+Now of course at some point we want to get that energy back out from the battery and run out appliances with it. And that's what we need an inverter for. I use a Soyosource GTN1200 that can supply 900W AC. It also comes with various power levels and voltages, so pick an appropriate one for your battery. The GTN series is universal and can be used with PV cells and batteries. It comes configured for PV operation which needs to be changed. There is also some mimimum cutoff voltage which is a nice backup to our software logic.
 
 It has an RS-485 interface that is normally connected to their own power sensing gadget but we interface via our python script. In addition it has a second serial port that is meant for a Wifi module. It looks like a USB port but is actually 5V, TX, RX, GND. I use this second interface for READING values because the RS485 port does not output any data on my device. It is a known bug.
 
@@ -62,7 +62,7 @@ Finally script netzero.py makes sense of it all. It is "clocked" by the incoming
 
 It also exports battery power in topic /battery/power . Negative when taking energy from the battery, otherwise positive.
 
-Inverter power is also governed by battery voltage. Power is ramped down to 0 is a given target is approached. Again, hard-coded, please adjust! (in setInverterPower/voltagePowerLimit)
+Inverter power is also governed by battery voltage. Power is ramped down to 0 is a given target is approached. Adjust the limits in config.json
 
 Since this storage system is AC coupled it can work with as many solar arrays as you like. For example I have 2 solar arrays and the battery can be charged from both. We loose some energy to conversion losses this way but are more flexible also in where we can put the storage system. It actually lives in my desk:
 
@@ -70,7 +70,7 @@ Since this storage system is AC coupled it can work with as many solar arrays as
 
 # Cloudy stuff
 If you run a web server with a database you can deploy some simple php scripts provided in the server-side directory. index.php contains commands to set up your database. You probably want to play with display.php to show what you want.
-Python script submitToLogger.py sends the data to your web server via https. Again, web server is hard-coded, please adjust. I use a static key for minimalistic access control that is sent along with the data every time. The server only stores a hash of that key. Please set this up in config.inc.php
+Python script submitToLogger.py sends the data to your web server via https. Set the web server URI in config.json. I use a static key for minimalistic access control that is sent along with the data every time. The server only stores a hash of that key. Please set this up in config.inc.php
 The script sends the counter data from above and merges battery power into the JSON blob as well.
 
 ![](images/web-interface.png)
