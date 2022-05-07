@@ -320,7 +320,8 @@ void setup(void){
   //WIFI INIT
   #ifdef WIFI_IS_OFF_AT_BOOT
     enableWiFiAtBootTime();
-  #endif  WiFi.mode(WIFI_AP_STA);
+  #endif  
+  WiFi.mode(WIFI_AP_STA);
   WiFi.begin();
   WiFi.setAutoReconnect(true);
   WiFi.persistent(true);
