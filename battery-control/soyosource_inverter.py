@@ -57,14 +57,21 @@ client.subscribe("/inverter/setpoint/power")
 
 client.publish("/inverter/info/maxpower", config['inverter']['maxpower'], retain=True)
 
+voltages = [ 0, 0, 0, 0, 0 ]
+
 while True:
 	(valid, opmode, dcVoltage, current, acVoltage, acFrq, tmpHs) = queryStatus(serTtl)
 	
 	if valid:
-		client.publish("/inverter/info/udc", dcVoltage)
+		#Calculate sliding median of inverter voltage as it contains glitches
+		voltages.append(dcVoltage)
+		voltages.pop(0)
+		v = voltages.copy()
+		v.sort()
+		client.publish("/inverter/info/udc", v[2])
 		client.publish("/inverter/info/idc", current)
 		client.publish("/inverter/info/temp", tmpHs)
-		client.publish("/inverter/info/power", dcVoltage * current)
+		client.publish("/inverter/info/power", v[2] * current)
 		
 	client.loop(timeout=0.1)
 	time.sleep(0.2)
