@@ -1,11 +1,19 @@
 <!doctype html>
 <html>
 <head>
-<title>EBZ Zaehler</title>
+<title>Energiemonitor</title>
 <style>
 span.value {
 	position: absolute;
 	left: 12em;
+}
+span.value2 {
+	position: absolute;
+	left: 17em;
+}
+span.value3 {
+	position: absolute;
+	left: 23em;
 }
 </style>
 <script src="chart.min.js" type="text/javascript"></script>
@@ -16,7 +24,7 @@ var avgdata = {};
 
 $_SESSION['allow'] = true;
 
-$last = $sqlDrv->scalarQuery("select max(time) from ebzdaily");
+$last = $sqlDrv->scalarQuery("SELECT MAX(time) FROM ebzdaily");
 $last = new DateTime($last);
 $start = $last->add(new DateInterval("PT1H"))->format('Y-m-d');
 $end = (new DateTime())->format('Y-m-d');
@@ -42,8 +50,7 @@ group by
 	counter_id, SUBSTRING(time, 1, 10);";
 	
 $sqlDrv->query($sql);
-
-$sql = "SELECT time,etotal,ptotal,pl1,pl2,pl3,pbat FROM ebzdata ORDER BY id DESC LIMIT 0, 1000";
+$sql = "SELECT time,ptotal,pbat FROM ebzdata ORDER BY id DESC LIMIT 0, 1000";
 
 foreach ($sqlDrv->arrayQuery($sql) as $row)
 {
@@ -55,19 +62,31 @@ foreach ($sqlDrv->arrayQuery($sql) as $row)
 
 foreach ($result as $name => $values)
 {
-	echo "initdata['$name'] = [ " . implode(",", array_reverse($values)) . "]" . PHP_EOL;
+	echo "initdata['$name'] = [ " . implode(",", array_reverse($values)) . "];" . PHP_EOL;
 }
 
-$sql = "SELECT MIN(time) time,AVG(ptotal) ptotal FROM ebzdata GROUP BY SUBSTRING(time, 1, 16) ORDER BY id DESC LIMIT 0, 1440";
+$result = [];
+$start = $last->sub(new DateInterval("PT1H"))->format('Y-m-d H:i:s');
+$startId = $sqlDrv->scalarQuery("SELECT id FROM ebzdata WHERE time > '$start' LIMIT 1");
+$sql = "SELECT MIN(time) time,AVG(ptotal) ptotal, AVG(pbat) pbat FROM ebzdata WHERE id > $startId GROUP BY SUBSTRING(time, 1, 16)";
 
-echo "avgdata = {";
-$comma = '';
-foreach (array_reverse($sqlDrv->arrayQuery($sql)) as $row)
+//$time_pre = microtime(true);
+foreach ($sqlDrv->arrayQuery($sql) as $row)
 {
-	echo $comma . '"' . $row['time'] . '":' . $row['ptotal'];
-	$comma = ',';
+	foreach ($row as $name => $value)
+	{
+		$result[$name][] = is_numeric($value) ? $value : "'$value'";
+	}
 }
-echo "};";
+
+foreach ($result as $name => $values)
+{
+	echo "avgdata['$name'] = [ " . implode(",", $values) . "];" . PHP_EOL;
+}
+
+//$time_post = microtime(true);
+//$exec_time = $time_post - $time_pre;
+//echo "alert($exec_time);".PHP_EOL;
 
 $sql = "select sum(etotalout) from ebzdaily";
 $unused = $sqlDrv->scalarQuery($sql);
@@ -93,9 +112,7 @@ $charged += $sqlDrv->scalarQuery($sql);
 <p><b>Timestamp</b><span class='value' id='time'></span>
 <p><b>E-Total</b> [kWh]<span class='value' id='etotal'></span>
 <p><b>P-Total</b> [W]<span class='value' id='ptotal'></span>
-<p><b>P-L1</b> [W]<span class='value' id='pl1'></span>
-<p><b>P-L2</b> [W]<span class='value' id='pl2'></span>
-<p><b>P-L3</b> [W]<span class='value' id='pl3'></span>
+<p><b>P-L1/2/3</b> [W]<span class='value' id='pl1'></span><span class='value2' id='pl2'></span><span class='value3' id='pl3'></span>
 <p><b>P-Bat</b> [W] <span class='value' id="pbat"></span>
 <p><b>E-Bat Chg</b> [kWh] <span class='value' id="charged"><?php echo $charged ?></span>
 <p><b>E-Bat Dis</b> [kWh] <span class='value' id="discharged"><?php echo $discharged ?></span>
@@ -104,6 +121,23 @@ $charged += $sqlDrv->scalarQuery($sql);
 
 <p><canvas id="canvas" width=100 height=40></canvas>
 <p><canvas id="avgcanvas" width=100 height=40></canvas>
+<table border=1>
+<thead><tr><th>Date</th><th>E-Total</th><th>Delta</th></tr></thead>
+<tbody>
+<?php
+$sql = "select substring(time, 1, 10) date,etotal from ebzdaily";
+$rows = $sqlDrv->arrayQuery($sql);
 
+$lastEtotal = 0;
+foreach ($rows as $row)
+{
+	$date = $row['date'];
+	$etotal = $row['etotal'];
+	$delta = round($etotal - $lastEtotal, 2);
+	$lastEtotal = $etotal;
+	echo "<tr><td>$date</td><td>$etotal</td><td>$delta</td></tr>";
+}
+?>
+</tbody></table>
 </body>
 </html>

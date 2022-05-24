@@ -111,7 +111,7 @@ function generateChart()
 			}
 		} });
 
-	items = { names: [ "ptotal" ], axes: [ "left" ] };
+	items = { names: [ "ptotal", "pbat" ], axes: [ "left", "left" ] };
 	var colours = [ 'rgb(255, 99, 132)', 'rgb(54, 162, 235)', 'rgb(255, 159, 64)', 'rgb(153, 102, 255)', 'rgb(255, 205, 86)', 'rgb(75, 192, 192)' ];
 
 	chart.config.data.datasets = new Array();
@@ -131,17 +131,20 @@ function generateChart()
 		chart.config.data.labels = initdata['time'];
 	}
 
-	var newDataset = {
-	        label: "ptotal",
-	        data: Object.values(avgdata),
-	        borderColor: colours[0],
-	        backgroundColor: colours[0],
-	        fill: false,
-	        pointRadius: 0,
-	        yAxisID: "left"
-	    };
-	avgchart.config.data.datasets.push(newDataset);
-	avgchart.config.data.labels = Object.keys(avgdata);
+	for (var signalIdx = 0; signalIdx < items.names.length; signalIdx++)
+	{
+		var newDataset = {
+		        label: items.names[signalIdx],
+		        data: avgdata[items.names[signalIdx]],
+		        borderColor: colours[signalIdx % colours.length],
+		        backgroundColor: colours[signalIdx % colours.length],
+		        fill: false,
+		        pointRadius: 0,
+		        yAxisID: items.axes[signalIdx]
+		    };
+		avgchart.config.data.datasets.push(newDataset);
+		avgchart.config.data.labels = avgdata['time'];
+	}
 	
 	chart.update();
 	avgchart.update();
