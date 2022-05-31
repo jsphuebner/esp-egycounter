@@ -29,24 +29,24 @@ $last = new DateTime($last);
 $start = $last->add(new DateInterval("PT1H"))->format('Y-m-d');
 $end = (new DateTime())->format('Y-m-d');
 
-$sql = "insert ignore into ebzdaily
-select
-	max(id) as id,
+$sql = "INSERT IGNORE INTO ebzdaily
+SELECT
+	MAX(id) as id,
 	counter_id,
-	max(time) as time,
-	max(etotal) as etotal,
-	sum(if(ptotal>0, ptotal, 0))/(1000*3600) as etotalin,
-	sum(if(ptotal<0, ptotal, 0))/(1000*3600) as etotalout,
-	sum(pl1)/(1000*3600) as el1,
-	sum(pl2)/(1000*3600) as el2,
-	sum(pl3)/(1000*3600) as el3,
-	sum(if(pbat>0, pbat, 0))/(1000*3600) as ebatin,
-	sum(if(pbat<0, pbat, 0))/(1000*3600) as ebatout
-from
+	MAX(time) as time,
+	MAX(etotal) as etotal,
+	SUM(if(ptotal>0, ptotal, 0))/(1000*3600) as etotalin,
+	SUM(if(ptotal<0, ptotal, 0))/(1000*3600) as etotalout,
+	SUM(pl1)/(1000*3600) as el1,
+	SUM(pl2)/(1000*3600) as el2,
+	SUM(pl3)/(1000*3600) as el3,
+	SUM(if(pbat>0, pbat, 0))/(1000*3600) as ebatin,
+	SUM(if(pbat<0, pbat, 0))/(1000*3600) as ebatout
+FROM
 	ebzdata
-where
+WHERE
 	time >= '$start' and time < '$end'
-group by
+GROUP BY
 	counter_id, SUBSTRING(time, 1, 10);";
 	
 $sqlDrv->query($sql);
@@ -66,7 +66,7 @@ foreach ($result as $name => $values)
 }
 
 $result = [];
-$start = $last->sub(new DateInterval("PT1H"))->format('Y-m-d H:i:s');
+$start = (new DateTime())->sub(new DateInterval("PT24H"))->format('Y-m-d H:i:s');
 $startId = $sqlDrv->scalarQuery("SELECT id FROM ebzdata WHERE time > '$start' LIMIT 1");
 $sql = "SELECT MIN(time) time,AVG(ptotal) ptotal, AVG(pbat) pbat FROM ebzdata WHERE id > $startId GROUP BY SUBSTRING(time, 1, 16)";
 
