@@ -8,7 +8,9 @@
 		"maxpower": 900
 	},
 	"charger": {
-		"tty": "/dev/ttyUSB1"
+		"tty": "/dev/ttyUSB1",
+		"can": "can1",
+		"_comment": "tty for Manson charger, CAN for Flatpack"
 	},
 	"logger": {
 		"uri": "https://yourdomain.com/log/?key=<yourkey>&data="

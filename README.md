@@ -42,6 +42,8 @@ The Manson supply has a USB interface that runs a simple serial protocol. Manson
 
 The manson_charger.py script basically interfaces the supply via MQTT. In topic /charger/setpoint/voltage and /charger/setpoint/power it receives its output commands. In /charger/info/+ it supplies various readings. The voltage setpoint ensures that we do not over-charge the battery - as long as all cells are equal!
 
+UPDATE: I have replaced the Manson supply with an Eltek Flatpack 3 kW power supply that I had lying around anyway. It communicates via CAN and has a fallback mode where output voltage falls to 43.5V when no commands are received.
+
 When /charger/setpoint/power is not published two over 2s power is set to 0W by the python script. When the script crashes the charger will keep charging  only limited by the constant voltage setpoint.
 
 So that's it, intelligence comes further down.
