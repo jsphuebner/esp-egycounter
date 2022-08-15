@@ -66,9 +66,21 @@ foreach ($result as $name => $values)
 }
 
 $result = [];
-$start = (new DateTime())->sub(new DateInterval("PT24H"))->format('Y-m-d H:i:s');
+
+if (isset($_GET['start']))
+{
+	$start = $_GET['start'];
+	$stop = (new DateTime($start))->add(new DateInterval("PT24H"))->format('Y-m-d H:i:s');
+}
+else
+{
+	$start = (new DateTime("now", new DateTimeZone('Europe/Berlin')))->sub(new DateInterval("PT24H"))->format('Y-m-d H:i:s');
+	$stop = (new DateTime("now", new DateTimeZone('Europe/Berlin')))->format('Y-m-d H:i:s');
+}
+
 $startId = $sqlDrv->scalarQuery("SELECT id FROM ebzdata WHERE time > '$start' LIMIT 1");
-$sql = "SELECT MIN(time) time,AVG(ptotal) ptotal, AVG(pbat) pbat FROM ebzdata WHERE id > $startId GROUP BY SUBSTRING(time, 1, 16)";
+$endId = $sqlDrv->scalarQuery("SELECT id FROM ebzdata WHERE time < '$stop' ORDER BY id DESC LIMIT 1");
+$sql = "SELECT MIN(time) time,AVG(ptotal) ptotal, AVG(pbat) pbat FROM ebzdata WHERE id BETWEEN $startId AND $endId GROUP BY SUBSTRING(time, 1, 16)";
 
 //$time_pre = microtime(true);
 foreach ($sqlDrv->arrayQuery($sql) as $row)
@@ -122,20 +134,30 @@ $charged += $sqlDrv->scalarQuery($sql);
 <p><canvas id="canvas" width=100 height=40></canvas>
 <p><canvas id="avgcanvas" width=100 height=40></canvas>
 <table border=1>
-<thead><tr><th>Date</th><th>E-Total</th><th>Delta</th></tr></thead>
+<thead><tr><th>Date</th><th>E-car</th><th>E-Total</th><th>Day</th><th>Month</th></tr></thead>
 <tbody>
 <?php
-$sql = "select substring(time, 1, 10) date,etotal from ebzdaily";
+$sql = "select substring(time, 1, 10) date,etotal,el3 from ebzdaily";
 $rows = $sqlDrv->arrayQuery($sql);
 
-$lastEtotal = 0;
+$lastEtotal = $rows[0]['etotal'];
+$lastMonthTotal  = $rows[0]['etotal'];
 foreach ($rows as $row)
 {
 	$date = $row['date'];
 	$etotal = $row['etotal'];
+	$ecar = round($row['el3'], 2);
 	$delta = round($etotal - $lastEtotal, 2);
 	$lastEtotal = $etotal;
-	echo "<tr><td>$date</td><td>$etotal</td><td>$delta</td></tr>";
+	echo "<tr><td><a href='?start=$date'>$date</a></td><td>$ecar</td><td>$etotal</td><td>$delta</td>";
+	
+	if (substr($date, -2) == '01' || $row == $rows[count($rows)-1])
+	{
+		$delta = round($etotal - $lastMonthTotal, 2);
+		$lastMonthTotal = $etotal;
+		echo "<td>$delta</td>";
+	}
+	echo '</tr>';
 }
 ?>
 </tbody></table>
