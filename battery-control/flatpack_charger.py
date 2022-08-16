@@ -2,7 +2,7 @@
 
 import can
 import paho.mqtt.client as mqtt
-import time
+import time, json
 
 def on_message(client, hcs, msg):
 	global powerTimeout
