@@ -6,13 +6,20 @@ import time
 
 def on_message(client, hcs, msg):
 	global powerTimeout
+	global voltage
 	global maxVoltage
 	global powerSetpoint
 	
 	if msg.topic == "/charger/setpoint/voltage":
 		maxVoltage = float(msg.payload)
 	elif msg.topic == "/charger/setpoint/power":
-		powerSetpoint = float(msg.payload)
+		power = float(msg.payload)
+		
+		#When transitioning to 0 power preload integrator to a sag of 1V potentially caused by inverter
+		if power == 0 and powerSetpoint > 0:
+			powerRegulator.errsum = (voltage - 1) / ki
+			
+		powerSetpoint = power
 		powerTimeout = 20
 		
 def powerRegulator(actualPower, wantedPower, minVoltage, maxVoltage, kp, ki):
@@ -27,7 +34,7 @@ def powerRegulator(actualPower, wantedPower, minVoltage, maxVoltage, kp, ki):
 		powerRegulator.errsum = errSumTemp
 		
 	return outputLimited
-		
+
 with open("config.json") as configFile:
 	config = json.load(configFile)
 
@@ -38,6 +45,7 @@ client.subscribe("/charger/setpoint/power")
 client.subscribe("/charger/setpoint/voltage")
 
 minVoltage = 43
+voltage = minVoltage
 maxVoltage = 0
 maxCurrent = 20
 powerSetpoint = 0
@@ -69,11 +77,7 @@ while True:
 			client.publish("/charger/info/current", current)
 			client.publish("/charger/info/power", power)
 			client.publish("/charger/info/maxpower", voltage * maxCurrent)
-			if powerSetpoint > 0:
-				regulatedVoltage = powerRegulator(power, powerSetpoint, minVoltage, maxVoltage, kp, ki) * 100
-			else:
-				regulatedVoltage = voltage - 1 #When inverter is active, make sure we don't interfere
-				powerRegulator.errsum = regulatedVoltage / ki
+			regulatedVoltage = powerRegulator(power, powerSetpoint, minVoltage, maxVoltage, kp, ki) * 100
 			lobyte = int(regulatedVoltage % 256)
 			hibyte = int(regulatedVoltage / 256)
 			print ("Received status, temperature={0} current={1}, voltage={2}, power={3}, setpoint={4}".format(temperature, current, voltage, power, regulatedVoltage / 100))
