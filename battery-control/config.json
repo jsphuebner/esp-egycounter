@@ -10,7 +10,8 @@
 	"charger": {
 		"tty": "/dev/ttyUSB1",
 		"can": "can1",
-		"_comment": "tty for Manson charger, CAN for Flatpack"
+		"gpio": "P9_12",
+		"_comment": "tty for Manson charger, CAN for Flatpack, GPIO for charger power relay"
 	},
 	"logger": {
 		"uri": "https://yourdomain.com/log/?key=<yourkey>&data="

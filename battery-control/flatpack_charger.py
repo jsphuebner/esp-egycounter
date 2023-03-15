@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import Adafruit_BBIO.GPIO as GPIO
 import can
 import paho.mqtt.client as mqtt
 import time, json
@@ -9,11 +10,15 @@ def on_message(client, hcs, msg):
 	global voltage
 	global maxVoltage
 	global powerSetpoint
+	global lastNonZeroCommand
 	
 	if msg.topic == "/charger/setpoint/voltage":
 		maxVoltage = float(msg.payload)
 	elif msg.topic == "/charger/setpoint/power":
 		power = float(msg.payload)
+		
+		if power > 20:
+			lastNonZeroCommand = time.time()
 		
 		#When transitioning to 0 power preload integrator to a sag of 1.3V potentially caused by inverter
 		if power == 0 and powerSetpoint > 0:
@@ -52,12 +57,24 @@ powerTimeout = 0
 kp = 0.001
 ki = 0.0001
 serial = False
+lastNonZeroCommand = time.time()
+chargerState = False #charger assumed off
 
 powerRegulator.errsum = minVoltage / ki
 
 bus=can.interface.Bus(bustype='socketcan', channel=config['charger']['can'], bitrate=125000)
+GPIO.setup(config['charger']['gpio'], GPIO.OUT)
 
 while True:
+	if (time.time() - lastNonZeroCommand) > 3600 and chargerState:
+		GPIO.output(config['charger']['gpio'], GPIO.LOW)
+		client.publish("/charger/info/state", "off")
+		chargerState = False
+	elif not chargerState and powerSetpoint > 60:
+		GPIO.output(config['charger']['gpio'], GPIO.HIGH)
+		client.publish("/charger/info/state", "on")
+		chargerState = True
+
 	message = bus.recv(0)
 	
 	if message:
