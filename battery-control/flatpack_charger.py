@@ -62,19 +62,15 @@ chargerState = False #charger assumed off
 
 powerRegulator.errsum = minVoltage / ki
 
-bus=can.interface.Bus(bustype='socketcan', channel=config['charger']['can'], bitrate=125000)
+filters = [
+{"can_id": 0x05014400, "can_mask": 0x1FFFFFFF, "extended": True},
+{"can_id": 0x05014004, "can_mask": 0x1FFFFFFF, "extended": True},  
+]
+
+bus=can.interface.Bus(bustype='socketcan', channel=config['charger']['can'], can_filters = filters)
 GPIO.setup(config['charger']['gpio'], GPIO.OUT)
 
 while True:
-	if (time.time() - lastNonZeroCommand) > 3600 and chargerState:
-		GPIO.output(config['charger']['gpio'], GPIO.LOW)
-		client.publish("/charger/info/state", "off")
-		chargerState = False
-	elif not chargerState and powerSetpoint > 60:
-		GPIO.output(config['charger']['gpio'], GPIO.HIGH)
-		client.publish("/charger/info/state", "on")
-		chargerState = True
-
 	message = bus.recv(0)
 	
 	if message:
@@ -100,4 +96,15 @@ while True:
 			#print ("Received status, temperature={0} current={1}, voltage={2}, power={3}, setpoint={4}".format(temperature, current, voltage, power, regulatedVoltage / 100))
 			msg = can.Message(arbitration_id=0x05FF4005, data=[maxCurrent * 10, 0, lobyte, hibyte, lobyte, hibyte, lobyte, hibyte + 1] , is_extended_id=True)
 			bus.send(msg)
+
+	if (time.time() - lastNonZeroCommand) > 3600 and chargerState:
+		GPIO.output(config['charger']['gpio'], GPIO.LOW)
+		client.publish("/charger/info/state", "off")
+		client.publish("/charger/info/power", 0)
+		chargerState = False
+	elif not chargerState and powerSetpoint > 60:
+		GPIO.output(config['charger']['gpio'], GPIO.HIGH)
+		client.publish("/charger/info/state", "on")
+		chargerState = True
+
 	client.loop(timeout=0.1)
