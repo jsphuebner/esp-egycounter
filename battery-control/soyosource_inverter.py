@@ -11,14 +11,16 @@ def on_message(client, ser485, msg):
 	
 	if msg.topic == "/inverter/setpoint/power":
 		finalPower = float(msg.payload)
-		finalPower = int(min(900, max(0, finalPower)))
+		finalPower = int(min(800, max(0, finalPower)))
 
 		print("Setting output power to " + str(finalPower))
 		sys.stdout.flush()
 		
 		req[4] = int(finalPower / 256)
 		req[5] = finalPower & 255
-		req[7] = (264 - req[4] - req[5]) & 255
+		cs = 264 - req[4] - req[5]
+		if cs >= 256: cs = 8
+		req[7] = cs
 		ser485.write(req)
 
 def queryStatus(ser):
@@ -52,7 +54,7 @@ queryStatus.lastreply = []
 
 client = mqtt.Client("soyoSource", userdata=ser485)
 client.on_message = on_message
-client.connect("localhost", 1883, 60)
+client.connect(config["broker"]["address"], 1883, 60)
 client.subscribe("/inverter/setpoint/power")
 
 client.publish("/inverter/info/maxpower", config['inverter']['maxpower'], retain=True)

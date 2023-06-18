@@ -1,20 +1,23 @@
 {
+	"broker": {
+	    "address": "192.168.188.23"
+	},
 	"meter": {
 		"topic": "/ebz/readings"
 	},
 	"inverter": {
-		"tty485": "/dev/ttyUSB0",
-		"ttyTTL": "/dev/ttyO4",
+		"tty485": "/dev/ttyS0",
+		"ttyTTL": "/dev/ttyUSB0",
 		"maxpower": 900
 	},
 	"charger": {
 		"tty": "/dev/ttyUSB1",
-		"can": "can1",
+		"can": "can0",
 		"gpio": "P9_12",
 		"_comment": "tty for Manson charger, CAN for Flatpack, GPIO for charger power relay"
 	},
 	"bms": {
-	    "can": "can1",
+	    "can": "can0",
 	    "nodeid": 3,
 	    "values": {
 	        "uavg": 2002,
@@ -33,7 +36,12 @@
 	        "u9": 2015,
 	        "u10": 2016,
 	        "u11": 2017
-	    }
+	    },
+	    "minvtgname": "umin",
+	    "maxvtgname": "umax",
+	    "cellmin": 3400,
+	    "cellmax": 4140,
+	    "plimit": 1500
 	},
 	"logger": {
 		"uri": "https://yourdomain.com/log/?key=<yourkey>&data="
