@@ -1,0 +1,13 @@
+[Unit]
+Description=Device driver for SoyoSource Inverter
+After=multi-user.target
+
+[Service]
+Type=simple
+User=debian
+Restart=on-failure
+WorkingDirectory=/home/debian
+ExecStart=/usr/bin/python3 soyosource_inverter.py
+
+[Install]
+WantedBy=multi-user.target
