@@ -49,6 +49,7 @@
 #include <ArduinoOTA.h>
 #include <FS.h>
 #include <Ticker.h>
+#include <StringReadStream.h>
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
 
@@ -68,40 +69,39 @@ ESP8266HTTPUpdateServer updater;
 File fsUploadFile;
 Ticker sta_tick;
 WiFiClient client;
-Adafruit_MQTT_Client mqtt(&client, "192.168.178.37", 1883);
+Adafruit_MQTT_Client mqtt(&client, "192.168.188.23", 1883);
 Adafruit_MQTT_Publish ebz = Adafruit_MQTT_Publish(&mqtt, "/ebz/readings");
+Adafruit_MQTT_Publish ebzRaw = Adafruit_MQTT_Publish(&mqtt, "/ebz/raw");
 CounterValues values;
 
-void GetCounterValues(CounterValues& v)
+void GetCounterValues(CounterValues& v, String& raw)
 {
   Serial.readStringUntil('/');
-  Serial.readStringUntil('\n');
-  Serial.readStringUntil('\n');
-  Serial.readStringUntil('(');
-  v.id = Serial.readStringUntil(')');
-  Serial.readStringUntil('\n');
   yield();
-  Serial.readStringUntil('\n');
-  Serial.readStringUntil('(');
-  v.etotal = Serial.parseFloat();
-  Serial.readStringUntil('\n');
-  yield();
-  Serial.readStringUntil('(');
-  v.ptotal = Serial.parseFloat();
-  Serial.readStringUntil('\n');
-  yield();
-  Serial.readStringUntil('(');
-  v.pphase[0] = Serial.parseFloat();
-  Serial.readStringUntil('\n');
-  yield();
-  Serial.readStringUntil('(');
-  v.pphase[1] = Serial.parseFloat();
-  Serial.readStringUntil('\n');
-  yield();
-  Serial.readStringUntil('(');
-  v.pphase[2] = Serial.parseFloat();
-  yield();
-  Serial.readStringUntil('!');
+  raw = Serial.readStringUntil('!');
+  raw += '!';
+  StringReadStream stream(raw);
+  
+  stream.readStringUntil('\n');
+  stream.readStringUntil('\n');
+  stream.readStringUntil('(');
+  v.id = stream.readStringUntil(')');
+  stream.readStringUntil('\n');
+  stream.readStringUntil('\n');
+  stream.readStringUntil('(');
+  v.etotal = stream.parseFloat();
+  stream.readStringUntil('\n');
+  stream.readStringUntil('(');
+  v.ptotal = stream.parseFloat();
+  stream.readStringUntil('\n');
+  stream.readStringUntil('(');
+  v.pphase[0] = stream.parseFloat();
+  stream.readStringUntil('\n');
+  stream.readStringUntil('(');
+  v.pphase[1] = stream.parseFloat();
+  stream.readStringUntil('\n');
+  stream.readStringUntil('(');
+  v.pphase[2] = stream.parseFloat();
 }
 
 //format bytes
@@ -314,7 +314,7 @@ void staCheck(){
 
 void setup(void){
   Serial.begin(9600, SERIAL_7E1);
-  Serial.setTimeout(300);
+  Serial.setTimeout(500);
   SPIFFS.begin();
 
   //WIFI INIT
@@ -387,13 +387,12 @@ void loop(void){
 
   String output;
   yield();
-  GetCounterValues(values);
+  GetCounterValues(values, output);
+  ebzRaw.publish(output.c_str());
   ValuesJson(output);
 
   server.handleClient();
 
   MQTT_connect();
-  char buffer[256];
-  output.toCharArray(buffer, sizeof(buffer));
-  ebz.publish(buffer);
+  ebz.publish(output.c_str());
 }

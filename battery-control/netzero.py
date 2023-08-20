@@ -1,20 +1,47 @@
 #!/usr/bin/python3
 
-import time, sys, json
+import time, sys, json, urllib.request
+from datetime import datetime
 import paho.mqtt.client as mqtt
+
+def getUnixTime():  
+	return (datetime.now() - datetime(1970, 1, 1)).total_seconds()
 	
+def updatePriceList():
+	global priceListObtained
+	global priceList
+	global config
+
+	req = urllib.request.urlopen(config['netzero']['priceuri'])
+	data = req.read()
+	priceList = json.loads(data)
+	priceListObtained = getUnixTime()
+	print('Obtained pricelist')
+	
+def getCurrentPrice():
+	global priceList
+
+	timeNow = getUnixTime() * 1000
+	for item in priceList['data']:
+		if item['end_timestamp'] > timeNow:
+			return float(item['marketprice'])
+
 def setChargePower(client, gridPower):
 	global lastChargerPower
 	global maxChargePower
 	global lastInverterPower
+	global config
 	
 	solarpower = lastChargerPower - gridPower
 	solarpower = min(solarpower, maxChargePower)
+
+	if getCurrentPrice() < config['netzero']['gridchargethresh']:
+		solarpower = min(1000, maxChargePower)
 	
 	if lastInverterPower > 10:
 		client.publish("/charger/setpoint/power", 0)
 	else:
-		client.publish("/charger/setpoint/power", max(0, solarpower - 10))
+		client.publish("/charger/setpoint/power", max(0, solarpower))
 	
 def setInverterPower(client, gridPower):
 	global config
@@ -24,12 +51,6 @@ def setInverterPower(client, gridPower):
 	global maxDischargePower
 	global lastInverterPower
 	
-	if (lastInverterPower == 0 and gridPower < 30) or lastChargerPower > 10 or maxDischargePower < 50:
-		setInverterPower.errSum = 0
-		lastInverterPower = 0
-		client.publish("/inverter/setpoint/power", 0)
-		return
-
 	ki = config['netzero']['powerki']
 	setInverterPower.errSum = setInverterPower.errSum + gridPower
 	setInverterPower.errSum = max(0, setInverterPower.errSum)
@@ -37,7 +58,15 @@ def setInverterPower(client, gridPower):
 
 	powerSetpoint = gridPower * config['netzero']['powerkp'] + setInverterPower.errSum * ki
 	powerSetpoint = min(powerSetpoint, maxInverterPower, maxDischargePower)
+	
+	if getCurrentPrice() < config['netzero']['nobatterypowerthresh']:
+		powerSetpoint = 0
+
 	lastInverterPower = powerSetpoint
+	
+	if lastInverterPower < 25 or lastChargerPower > 10 or maxDischargePower < 50:
+	   lastInverterPower = 0
+	   setInverterPower.errSum = 0
 			
 	client.publish("/inverter/setpoint/power", powerSetpoint)
 
@@ -60,9 +89,12 @@ def on_message(client, userdata, msg):
 	global lastGridPower
 	global maxChargePower
 	global maxDischargePower
+	global priceListObtained
 
 	if msg.topic == config['meter']['topic']:
 		try:
+			if (getUnixTime() - priceListObtained) >= 3600:
+				updatePriceList()
 			data = json.loads(msg.payload)
 			ptotal = data['ptotal']
 			lastGridPower = (ptotal + lastGridPower) / 2
@@ -96,7 +128,7 @@ with open("config.json") as configFile:
 	
 client = mqtt.Client("netZeroController")
 client.on_message = on_message
-client.connect("localhost", 1883, 60)
+client.connect(config['broker']['address'], 1883, 60)
 client.subscribe(config['meter']['topic'])
 client.subscribe("/charger/info/maxpower")
 client.subscribe("/charger/info/power")
@@ -118,6 +150,10 @@ lastBatteryVoltage = config['netzero']['uvlohyst']
 
 setInverterPower.errSum = 0
 setInverterPower.uvlo = False
+priceList = { "data": [] }
+priceListObtained = 0
+updatePriceList()
+print (getCurrentPrice())
 
 client.loop_forever()
 

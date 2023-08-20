@@ -1,0 +1,81 @@
+{
+  "$type" : "status",
+  "device_id" : "yyy",
+  "ts" : 1692217927,
+  "status" : {
+    "$type" : "metrics",
+    "ssid" : "tach",
+    "rssi" : -73,
+    "bssid" : "3481c4e31c3f",
+    "channel" : 6,
+    "mqttcon" : 0,
+    "wificon" : 0,
+    "id" : "yyy",
+    "uptime" : 1771259,
+    "efr_uptime" : 1771152,
+    "vcc" : 3.49,
+    "vacrms" : 227.22,
+    "heap" : 124808,
+    "coredump_available" : true,
+    "model" : "TJH01",
+    "nodes" : [ {
+      "$type" : "node",
+      "id" : 1,
+      "eui" : "zzz",
+      "model" : "TFD01",
+      "version" : "1001-b6715572",
+      "rssi" : -64.5310287475586,
+      "seen" : 2,
+      "available" : true,
+      "pubcnt" : 93,
+      "ota_state" : "idle",
+      "ota_status" : "up2date",
+      "manifest_version" : "1001-b6715572",
+      "up2date" : true
+    } ],
+    "ota" : [ {
+      "model" : "tibber-pulse-ir-hub-esp32",
+      "manifest_version" : "1357-05c0c2f6",
+      "current_version" : "1357-05c0c2f6",
+      "state" : "up2date"
+    }, {
+      "model" : "tibber-pulse-ir-hub-css",
+      "manifest_version" : "1357-05c0c2f6",
+      "current_version" : "1357-05c0c2f6",
+      "state" : "up2date"
+    }, {
+      "model" : "tibber-pulse-ir-hub-js",
+      "manifest_version" : "1357-05c0c2f6",
+      "current_version" : "1357-05c0c2f6",
+      "state" : "up2date"
+    }, {
+      "model" : "tibber-pulse-ir-hub-efr32-fg23",
+      "manifest_version" : "584-9be5169b",
+      "current_version" : "584-9be5169b",
+      "state" : "up2date"
+    }, {
+      "model" : "tibber-pulse-ir-hub-efr32-fg1",
+      "manifest_version" : "584-9be5169b",
+      "current_version" : "584-9be5169b",
+      "state" : "up2date"
+    } ],
+    "hub_ota_status" : "up2date",
+    "manifest_state" : "synced",
+    "manifest_version" : "2306.4",
+    "manifest_group" : "",
+    "netflags" : 25,
+    "ip" : "192.168.188.31",
+    "gateway" : "192.168.188.1",
+    "dns0" : "192.168.188.1",
+    "dns1" : "0.0.0.0",
+    "dns2" : "0.0.0.0",
+    "dns3" : "0.0.0.0",
+    "dns4" : "0.0.0.0",
+    "dns5" : "0.0.0.0",
+    "dns6" : "0.0.0.0",
+    "dns7" : "0.0.0.0",
+    "dns8" : "0.0.0.0",
+    "mac" : "34:94:54:5e:84:0",
+    "ap_mac" : "34:94:54:5e:84:1"
+  }
+}

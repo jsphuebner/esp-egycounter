@@ -1,0 +1,26 @@
+{
+  "$type" : "node_status",
+  "node_status" : {
+    "product_id" : 49344,
+    "bootloader_version" : 17563650,
+    "meter_mode" : 4,
+    "node_battery_voltage" : 3.435,
+    "node_temperature" : 28.166,
+    "node_avg_rssi" : -43.557,
+    "node_avg_lqi" : 193.705,
+    "radio_tx_power" : 0,
+    "node_uptime_ms" : 2435139570,
+    "meter_msg_count_sent" : 99,
+    "meter_pkg_count_sent" : 133,
+    "time_in_em0_ms" : 4351,
+    "time_in_em1_ms" : 33,
+    "time_in_em2_ms" : 295767,
+    "acmp_rx_autolevel_300" : 146,
+    "acmp_rx_autolevel_9600" : 139
+  },
+  "hub_attachments" : {
+    "meter_pkg_count_recv" : 133,
+    "meter_reading_count_recv" : 99,
+    "node_version" : "1001-b6715572"
+  }
+}

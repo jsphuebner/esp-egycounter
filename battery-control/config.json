@@ -3,11 +3,18 @@
 	    "address": "192.168.188.23"
 	},
 	"meter": {
-		"topic": "/ebz/readings"
+		"topic": "/ebz/readings",
+		"rawtopic": "/ebz/raw"
+	},
+	"tibber": {
+		"broker": "a2zhmn2392zl2a.iot.eu-west-1.amazonaws.com",
+		"uid": "209ad2f026855a9d895580f78d3519d6",
+		"bridgeid": "1596765f34000",
+		"eui": "ef8e95123eb82afe"
 	},
 	"inverter": {
-		"tty485": "/dev/ttyS0",
-		"ttyTTL": "/dev/ttyUSB0",
+		"tty485": "/dev/ttyUSB0",
+		"ttyTTL": "/dev/ttyS0",
 		"maxpower": 900
 	},
 	"charger": {
@@ -52,6 +59,9 @@
 		"voltagekp": 500,
 		"powerkp": 1,
 		"powerki": 0.2,
-		"chargevoltage": 52.6
+		"chargevoltage": 52.6,
+		"priceuri": "https://api.awattar.at/v1/marketdata",
+		"gridchargethresh": -100,
+		"nobatterypowerthresh": 20
 	}
 }
