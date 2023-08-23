@@ -61,13 +61,12 @@ def setInverterPower(client, gridPower):
 	
 	if getCurrentPrice() < config['netzero']['nobatterypowerthresh']:
 		powerSetpoint = 0
-
-	lastInverterPower = powerSetpoint
 	
 	if lastInverterPower < 25 or lastChargerPower > 10 or maxDischargePower < 50:
-	   lastInverterPower = 0
+	   powerSetpoint = 0
 	   setInverterPower.errSum = 0
 			
+	lastInverterPower = powerSetpoint
 	client.publish("/inverter/setpoint/power", powerSetpoint)
 
 def publishBatteryPower(client):

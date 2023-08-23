@@ -1,11 +1,11 @@
 # Tibber Pulse data sender
-The goal of this sub module is to make the Tibber Pulse IR hardware redundant. Tibber's hard has some drawbacks:
+The goal of this sub module is to make the Tibber Pulse IR hardware redundant. Tibber's hardware has some drawbacks:
 
 - The Pulse IR is battery operated
 - The Pulse IR is hard to install correctly to have uninterrupted data flow
 - An additional Wifi bridge is needed
 
-Since this project deploys an IR pickup head on your meter anyway and it also deploys a network attached Linux computer we actually have all the hardware installed to give Tibber what it wants: high resolution records of your power energy consumption.
+Since this project deploys an IR pickup head on your meter anyway and it also deploys a network attached Linux computer we actually have all the hardware installed to give Tibber what it wants: high resolution records of your energy consumption.
 
 I have only tested the procedure with my eBZ meter which uses what I think is called the OBIS data format (text based)
 
