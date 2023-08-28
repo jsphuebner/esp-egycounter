@@ -66,7 +66,6 @@ with open("tibber/TJH01_event.json") as jsonFile:
 with open("config.json") as configFile:
 	config = json.load(configFile)
 	
-
 client = mqtt.Client(config['tibber']['bridgeid'])
 client.on_message = tibber_to_pulse_message
 client.on_connect = tibber_connect
@@ -76,7 +75,7 @@ client.connect(config['tibber']['broker'], 8883)
 localclient = mqtt.Client("tibberSender")
 localclient.on_message = onMeterData
 localclient.connect(config['broker']['address'], 1883, 60)
-localclient.subscribe(client.subscribe(config['meter']['rawtopic']))
+localclient.subscribe(config['meter']['rawtopic'])
 unix_timestamp = (datetime.now() - datetime(1970, 1, 1)).total_seconds()
 lastTjhMetricTs = unix_timestamp
 lastTfdMetricTs = unix_timestamp - 60
