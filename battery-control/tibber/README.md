@@ -78,7 +78,7 @@ So underneath above topic we have
 
 ```TFD01/<eui>/obis_stream``` The actual meter data in ASCII OBIS format - send every 2 seconds (every 10s might be sufficient)
 
-```TFD01/<eui>/SML``` Alternatively meter data in binary SML format (see issue #2) - same frequency as above
+```TFD01/<eui>/sml``` Alternatively meter data in binary SML format (see issue #2) - same frequency as above
 
 Then for the bridge we have
 
