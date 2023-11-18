@@ -60,8 +60,6 @@
 		"powerkp": 1,
 		"powerki": 0.2,
 		"chargevoltage": 52.6,
-		"priceuri": "https://api.awattar.at/v1/marketdata",
-		"gridchargethresh": -100,
-		"nobatterypowerthresh": 20
+		"priceuri": "https://api.awattar.at/v1/marketdata"
 	}
 }

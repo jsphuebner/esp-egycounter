@@ -1,42 +1,22 @@
 #!/usr/bin/python3
 
-import time, sys, json, urllib.request
+import time, sys, json
 from datetime import datetime
 import paho.mqtt.client as mqtt
-
-def getUnixTime():  
-	return (datetime.now() - datetime(1970, 1, 1)).total_seconds()
-	
-def updatePriceList():
-	global priceListObtained
-	global priceList
-	global config
-
-	req = urllib.request.urlopen(config['netzero']['priceuri'])
-	data = req.read()
-	priceList = json.loads(data)
-	priceListObtained = getUnixTime()
-	print('Obtained pricelist')
-	
-def getCurrentPrice():
-	global priceList
-
-	timeNow = getUnixTime() * 1000
-	for item in priceList['data']:
-		if item['end_timestamp'] > timeNow:
-			return float(item['marketprice'])
 
 def setChargePower(client, gridPower):
 	global lastChargerPower
 	global maxChargePower
 	global lastInverterPower
-	global config
+	global gridChargeThresh
+	global gridChargePower
+	global price
 	
 	solarpower = lastChargerPower - gridPower
 	solarpower = min(solarpower, maxChargePower)
 
-	if getCurrentPrice() < config['netzero']['gridchargethresh']:
-		solarpower = min(1000, maxChargePower)
+	if price < gridChargeThresh:
+		solarpower = min(max(solarpower, gridChargePower), maxChargePower)
 	
 	if lastInverterPower > 10:
 		client.publish("/charger/setpoint/power", 0)
@@ -45,24 +25,26 @@ def setChargePower(client, gridPower):
 	
 def setInverterPower(client, gridPower):
 	global config
+	global price
 	global lastBatteryVoltage
 	global lastChargerPower
 	global maxInverterPower
 	global maxDischargePower
 	global lastInverterPower
+	global gridDischargeThresh
 	
 	ki = config['netzero']['powerki']
-	setInverterPower.errSum = setInverterPower.errSum + gridPower
+	setInverterPower.errSum = setInverterPower.errSum + (gridPower - 10)
 	setInverterPower.errSum = max(0, setInverterPower.errSum)
 	setInverterPower.errSum = min(maxDischargePower / ki, maxInverterPower / ki, setInverterPower.errSum)
 
-	powerSetpoint = gridPower * config['netzero']['powerkp'] + setInverterPower.errSum * ki
+	powerSetpoint = (gridPower - 10) * config['netzero']['powerkp'] + setInverterPower.errSum * ki
 	powerSetpoint = min(powerSetpoint, maxInverterPower, maxDischargePower)
 	
-	if getCurrentPrice() < config['netzero']['nobatterypowerthresh']:
+	if price < gridDischargeThresh:
 		powerSetpoint = 0
 	
-	if lastInverterPower < 25 or lastChargerPower > 10 or maxDischargePower < 50:
+	if lastChargerPower > 10 or maxDischargePower < 50:
 	   powerSetpoint = 0
 	   setInverterPower.errSum = 0
 			
@@ -81,6 +63,7 @@ def publishBatteryPower(client):
 
 def on_message(client, userdata, msg):
 	global config
+	global price
 	global lastChargerPower
 	global lastBatteryVoltage
 	global lastInverterPower
@@ -89,11 +72,12 @@ def on_message(client, userdata, msg):
 	global maxChargePower
 	global maxDischargePower
 	global priceListObtained
+	global gridChargeThresh
+	global gridDischargeThresh
+	global gridChargePower
 
 	if msg.topic == config['meter']['topic']:
 		try:
-			if (getUnixTime() - priceListObtained) >= 3600:
-				updatePriceList()
 			data = json.loads(msg.payload)
 			ptotal = data['ptotal']
 			lastGridPower = (ptotal + lastGridPower) / 2
@@ -121,6 +105,14 @@ def on_message(client, userdata, msg):
 		maxChargePower = float(msg.payload)
 	elif msg.topic == "/bms/info/dischargepower":
 		maxDischargePower = float(msg.payload)
+	elif msg.topic == "/grid/chargethresh":
+		gridChargeThresh = float(msg.payload)
+	elif msg.topic == "/grid/dischargethresh":
+		gridDischargeThresh = float(msg.payload)
+	elif msg.topic == "/grid/chargepower":
+		gridChargePower = float(msg.payload)
+	elif msg.topic == "/spotmarket/pricenow":
+		price = float(msg.payload)
 
 with open("config.json") as configFile:
 	config = json.load(configFile)
@@ -136,6 +128,10 @@ client.subscribe("/inverter/info/maxpower")
 client.subscribe("/inverter/info/udc")
 client.subscribe("/bms/info/chargepower")
 client.subscribe("/bms/info/dischargepower")
+client.subscribe("/grid/chargethresh")
+client.subscribe("/grid/dischargethresh")
+client.subscribe("/grid/chargepower")
+client.subscribe("/spotmarket/pricenow")
 
 client.publish("/charger/setpoint/voltage", config['netzero']['chargevoltage'])
 
@@ -146,13 +142,12 @@ lastGridPower = 0
 maxChargePower = 500
 maxDischargePower = 500
 lastBatteryVoltage = config['netzero']['uvlohyst']
+gridChargeThresh = 0
+gridDischargeThresh = 0
+gridChargePower = 0
 
 setInverterPower.errSum = 0
 setInverterPower.uvlo = False
-priceList = { "data": [] }
-priceListObtained = 0
-updatePriceList()
-print (getCurrentPrice())
-
+price = 200
 client.loop_forever()
 
