@@ -65,3 +65,25 @@ First I recommend running Tibber with the actual Pulse for a while so that you a
 Now you should see your power consumption in the tibber app. If you have negative consumption, e.g. because of solar, the Tibber app won't update.
 
 With that sorted you can remove the batteries from your Pulse IR, put everything back in its box and store it for later use. Congratulations :)
+
+# Technical Info
+You don't need to read this if you just want to use it.
+All communication to Tibber is done via MQTT under the topic tree
+
+```$aws/rules/ingest_tibber_bridge_data/tibber-bridge/<uid>/publish/```
+
+So underneath above topic we have
+
+```TFD01/<eui>/metric``` various info about the Tibber IR reader on your meter - sent every 300 seconds
+
+```TFD01/<eui>/obis_stream``` The actual meter data in ASCII OBIS format - send every 2 seconds (every 10s might be sufficient)
+
+```TFD01/<eui>/sml``` Alternatively meter data in binary SML format (see issue #2) - same frequency as above
+
+Then for the bridge we have
+
+```TJH01/<bridge_id>/event``` A hello message read from TJH01_event.json - sent once at startup
+
+```TJH01/<bridge_id>/metric``` various info about the Tibber Wifi bridge - sent every 120 seconds
+
+The tibbersend.py scripts modifies the metrics to be somewhat plausible, like increasing uptime and some random variation in measured values such as temperature.
