@@ -43,7 +43,6 @@ while True:
 		updatePriceList()
 		client.publish("/spotmarket/pricenow", getCurrentPrice(), retain=True)
 
-	if datetime.now().minute == 0:
-		client.publish("/spotmarket/pricenow", getCurrentPrice(), retain=True)
+	client.publish("/spotmarket/pricenow", getCurrentPrice(), retain=True)
 	client.loop(timeout=0.1)
-	time.sleep(60)
+	time.sleep(10)

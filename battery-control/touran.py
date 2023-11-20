@@ -1,17 +1,13 @@
 #!/usr/bin/python3
 
-import urllib.request
+import urllib.request, socket
 import paho.mqtt.client as mqtt
 import time, json
 
 def on_message(client, userdata, msg):
-    global config
-	
-    if float(msg.payload) < config['touran']['startprice']:
-        req = urllib.request.urlopen("http://192.168.188.21/cmd?cmd=get%20obcsoclim", timeout=1)
-        if float(req.read()) < 50:
-            urllib.request.urlopen("http://192.168.188.21/cmd?cmd=set%20obcsoclim {0}".format(config['touran']['stopsoc']), timeout=1)
-            print(req.read())
+    global price
+    
+    price = float(msg.payload)
 
 with open("config.json") as configFile:
 	config = json.load(configFile)
@@ -21,17 +17,27 @@ client.on_message = on_message
 client.connect(config['broker']['address'], 1883, 60)
 client.subscribe("/spotmarket/pricenow")
 
+price = 200
+
 while True:
     try:
-        req = urllib.request.urlopen("http://192.168.188.21/cmd?cmd=get%20soc,iacobc,uacobc", timeout=1)
+        req = urllib.request.urlopen(config['touran']['uri'] + "get%20soc,iacobc,uacobc,obcsoclimit", timeout=1)
         data = req.read().split()
         soc = float(data[0])
         iac = float(data[1])
         uac = float(data[2])
+        soclim = float(data[3])
         power = uac * iac
         client.publish("/touran/soc", soc)
         client.publish("/touran/power", power)
+        
+        if float(msg.payload) < config['touran']['startprice'] and soclim < 50:
+            urllib.request.urlopen(config['touran']['uri'] + "set%20obcsoclimit%20" + config['touran']['stopsoc'], timeout=1)
     except urllib.error.URLError:
+        time.sleep(10)
+        continue
+    except socket.timeout:
+        time.sleep(10)
         continue
         
     client.loop(timeout=0.1)
