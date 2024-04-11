@@ -19,7 +19,9 @@ def on_message(client, ser485, msg):
 		req[4] = int(finalPower / 256)
 		req[5] = finalPower & 255
 		cs = 264 - req[4] - req[5]
-		if cs >= 256: cs = 8
+		if cs > 255:
+			if finalPower > 250:	cs -= 256
+			else:			cs -= 255
 		req[7] = cs
 		ser485.write(req)
 
