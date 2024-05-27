@@ -6,7 +6,7 @@ class MySqlDriver implements DBDriver
 	private $dbConn;
 	private $lastStatement;
 
-	function MySqlDriver($connInfo)
+	function __construct($connInfo)
 	{
 		$this->connInfo = $connInfo;
 	}

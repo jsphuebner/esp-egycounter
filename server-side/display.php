@@ -106,13 +106,14 @@ $sql = "select sum(ptotal)/(1000*3600) from ebzdata where ptotal<0 and time > '$
 $unused += $sqlDrv->scalarQuery($sql);
 $sql = "select sum(el3) from ebzdaily";
 $ecar = $sqlDrv->scalarQuery($sql);
-$sql = "select sum(pl3)/(1000*3600) from ebzdata where time > '$end'";
+//add energy from temporary 3-phase charging
+$sql = "select sum(pl3)/(1000*3600)+174+14 from ebzdata where time > '$end'";
 $ecar += $sqlDrv->scalarQuery($sql);
 $sql = "select sum(ebatout) from ebzdaily";
 $discharged = $sqlDrv->scalarQuery($sql);
 $sql = "select sum(pbat)/(1000*3600) from ebzdata where pbat<0 and time > '$end'";
 $discharged += $sqlDrv->scalarQuery($sql);
-$sql = "select sum(ebatin) from ebzdaily";
+$sql = "select 3.1+sum(ebatin) from ebzdaily"; //correct for missing charge logs
 $charged = $sqlDrv->scalarQuery($sql);
 $sql = "select sum(pbat)/(1000*3600) from ebzdata where pbat>0 and time > '$end'";
 $charged += $sqlDrv->scalarQuery($sql);
@@ -134,31 +135,63 @@ $charged += $sqlDrv->scalarQuery($sql);
 <p><canvas id="canvas" width=100 height=40></canvas>
 <p><canvas id="avgcanvas" width=100 height=40></canvas>
 <table border=1>
-<thead><tr><th>Date</th><th>E-car</th><th>E-Total</th><th>Day</th><th>Month</th></tr></thead>
+<thead><tr><th>Date</th><th>E-car</th><th>Month</th><th>E-Total</th><th>Day</th><th>Month</th></tr></thead>
 <tbody>
 <?php
+function check_in_range($start_date, $end_date, $date_from_user)
+{
+  // Convert to timestamp
+  $start_ts = strtotime($start_date);
+  $end_ts = strtotime($end_date);
+  $user_ts = strtotime($date_from_user);
+
+  // Check that user date is between start & end
+  return (($user_ts >= $start_ts) && ($user_ts <= $end_ts));
+}
+
 $sql = "select substring(time, 1, 10) date,etotal,el3 from ebzdaily";
 $rows = $sqlDrv->arrayQuery($sql);
 
 $lastEtotal = $rows[0]['etotal'];
-$lastMonthTotal  = $rows[0]['etotal'];
+$lastMonthTotal  = $lastEtotal;
+$totalDelta = $rows[count($rows) - 1]['etotal'] - $lastEtotal;
+$eCarSum = 0;
+$eCarTotal = 0;
+
 foreach ($rows as $row)
 {
 	$date = $row['date'];
 	$etotal = $row['etotal'];
-	$ecar = round($row['el3'], 2);
+	if (($date < '2022-07-21' || $date > '2022-09-02') && $date != '2023-05-07')
+		$ecar = round($row['el3'], 2);
+	else
+		$ecar = 3 * round($row['el3'], 2);
 	$delta = round($etotal - $lastEtotal, 2);
+	$eCarSum += $ecar;
+	$eCarTotal += $ecar;
 	$lastEtotal = $etotal;
-	echo "<tr><td><a href='?start=$date'>$date</a></td><td>$ecar</td><td>$etotal</td><td>$delta</td>";
+	$deltaMonth = "";
+	$eCarMonth = "";
+	$dt = date_create($date);
+	date_add($dt, date_interval_create_from_date_string("1 day"));
+	$nextMonth = date_format($dt, "m");
 	
-	if (substr($date, -2) == '01' || $row == $rows[count($rows)-1])
+	if (substr($date, 5, 2) != $nextMonth || $row == $rows[count($rows)-1])
 	{
-		$delta = round($etotal - $lastMonthTotal, 2);
+		$deltaMonth = round($etotal - $lastMonthTotal, 2);
 		$lastMonthTotal = $etotal;
-		echo "<td>$delta</td>";
+		$deltaMonth = "<td>$deltaMonth</td>";
+		$eCarMonth = $eCarSum;
+		$eCarSum = 0;
 	}
-	echo '</tr>';
+	$htmlRows[] = "<tr><td><a href='?start=$date'>$date</a></td><td>$ecar</td><td>$eCarMonth</td><td>$etotal</td><td>$delta</td>$deltaMonth</tr>";
 }
+
+$daily = round($totalDelta / count($rows), 2);
+$monthly = round($totalDelta / (count($rows) / 30), 2);
+$eCarMonthly = round($eCarTotal / (count($rows) / 30), 2);
+$htmlRows[] = "<tr><td><b>Total</b></td><td>$eCarTotal</td><td>$eCarMonthly</td><td>$totalDelta</td><td>$daily</td><td>$monthly</td></tr>";
+echo implode(PHP_EOL, array_reverse($htmlRows));
 ?>
 </tbody></table>
 </body>
