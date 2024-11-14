@@ -44,7 +44,7 @@ def powerRegulator(actualPower, wantedPower, minVoltage, maxVoltage, kp, ki):
 with open("config.json") as configFile:
 	config = json.load(configFile)
 
-client = mqtt.Client("flatpackCharger")
+client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, "flatpackCharger")
 client.on_message = on_message
 client.connect(config['broker']['address'], 1883, 60)
 client.subscribe("/charger/setpoint/power")

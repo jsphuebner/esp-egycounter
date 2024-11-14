@@ -1,0 +1,13 @@
+[Unit]
+Description=Script for retrieving spot market prices
+After=multi-user.target
+
+[Service]
+Type=simple
+User=debian
+Restart=on-failure
+WorkingDirectory=/home/debian
+ExecStart=/usr/bin/python3 spotmarket.py
+
+[Install]
+WantedBy=multi-user.target
