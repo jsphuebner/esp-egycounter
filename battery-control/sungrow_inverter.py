@@ -37,12 +37,12 @@ def decodeRegisters(mqttClient, registers, description):
             if 'scaling' in description[i]:
                  scaling = description[i]['scaling']
             
-            if type == "S16":
+            if dataType == "S16":
                 if value > 32767:
                     value = value - 65536
-            elif type == "U32":
+            elif dataType == "U32":
                 value = value + (registers[i + 1] << 16)
-            elif type == "S32":
+            elif dataType == "S32":
                 value = value + (registers[i + 1] << 16)
                 if value > 2147483647:
                     value = value - 4294967296

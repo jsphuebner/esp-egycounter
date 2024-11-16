@@ -79,7 +79,7 @@
                     { "_comment": 5028 },
                     { "_comment": 5029 },
                     { "_comment": 5030 },
-                    { "name": "total_active_power", "type": "U32", "unit": "W", "scaling": 1, "_comment": 5031 },
+                    { "name": "total_active_power", "type": "S32", "unit": "W", "scaling": 1, "_comment": 5031 },
                     { "_comment": 5032 },
                     { "name": "total_reactive_power", "type": "S32", "unit": "VA", "scaling": 1, "_comment": 5033 },
                     { "_comment": 5034 },
