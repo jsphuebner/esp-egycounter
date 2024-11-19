@@ -1,0 +1,194 @@
+ip: 192.168.25.20
+port: 502
+device_address: 1
+update_rate: 5
+address_offset: -1
+variant: tcp
+scan_batching: 50
+word_order: lowhigh
+registers:
+ - pub_topic: device_type
+   table: input
+   address: 5000
+   value_map:
+     SG30KTL: 0x27
+     SH5.0RT-V112: 0xE0C
+   retain: true
+ - pub_topic: nominal_active_power
+   table: input
+   address: 5001
+   scale: 0.1
+   retain: true
+ - pub_topic: phase_a_voltage
+   table: input
+   address: 5019
+   scale: 0.1
+   pub_only_on_change: false
+ - pub_topic: phase_b_voltage
+   table: input
+   address: 5020
+   scale: 0.1
+   pub_only_on_change: false
+ - pub_topic: phase_c_voltage
+   table: input
+   address: 5021
+   scale: 0.1
+   pub_only_on_change: false
+ - pub_topic: phase_a_current
+   table: input
+   address: 5022
+   type: int16
+   scale: 0.1
+   pub_only_on_change: false
+ - pub_topic: phase_b_current
+   table: input
+   address: 5023
+   type: int16
+   scale: 0.1
+   pub_only_on_change: false
+ - pub_topic: phase_c_current
+   table: input
+   address: 5024
+   type: int16
+   scale: 0.1
+   pub_only_on_change: false
+ - pub_topic: total_active_power
+   table: input
+   address: 5031
+   type: int32
+   pub_only_on_change: false
+ - pub_topic: total_reactive_power
+   table: input
+   address: 5033
+   type: int32
+   pub_only_on_change: false
+ - pub_topic: power_factor
+   table: input
+   type: int16
+   address: 5035
+   scale: 0.001
+   pub_only_on_change: false
+ - pub_topic: grid_frequency
+   table: input
+   type: uint16
+   address: 5036
+   scale: 0.1
+   pub_only_on_change: false
+ - pub_topic: bms_max_charging_current
+   table: input
+   type: uint16
+   address: 5635
+   pub_only_on_change: false
+ - pub_topic: bms_max_discharging_current
+   table: input
+   type: uint16
+   address: 5636
+   pub_only_on_change: false
+ - pub_topic: system_state
+   table: input
+   address: 13000
+   value_map:
+     Stop: 0x2
+     Standby: 0x8
+     Initial Standby: 0x10
+     Startup: 0x20
+     Run: 0x40
+     Maintain Run: 0x400
+     Forced Run: 0x800
+     Offgrid Run: 0x1000
+   pub_only_on_change: false
+ - pub_topic: battery_voltage
+   table: input
+   type: uint16
+   address: 13020
+   scale: 0.1
+   pub_only_on_change: false
+ - pub_topic: battery_current
+   table: input
+   type: uint16
+   address: 13021
+   scale: 0.1
+   pub_only_on_change: false
+ - pub_topic: battery_power
+   table: input
+   type: int16
+   address: 13022
+   pub_only_on_change: false
+ - pub_topic: battery_level
+   table: input
+   type: uint16
+   address: 13023
+   scale: 0.1
+   pub_only_on_change: false
+ - pub_topic: battery_state_of_health
+   table: input
+   type: uint16
+   address: 13024
+   scale: 0.1
+   pub_only_on_change: false
+ - pub_topic: battery_temperature
+   table: input
+   type: uint16
+   address: 13025
+   scale: 0.1
+   pub_only_on_change: false
+ - pub_topic: daily_battery_discharge_energy
+   table: input
+   type: uint16
+   address: 13026
+   scale: 0.1
+   pub_only_on_change: false
+ - pub_topic: total_battery_discharge_energy
+   table: input
+   type: uint32
+   address: 13027
+   scale: 0.1
+   pub_only_on_change: false
+ - pub_topic: daily_battery_charge_energy
+   table: input
+   type: uint16
+   address: 13040
+   scale: 0.1
+   pub_only_on_change: false
+ - pub_topic: total_battery_charge_energy
+   table: input
+   type: uint32
+   address: 13041
+   scale: 0.1
+   pub_only_on_change: false
+ - pub_topic: start_stop
+   set_topic: "start_stop/set"
+   table: holding
+   type: uint16
+   address: 5006
+   value_map:
+     Start: 0xcf
+     Stop: 0xce
+   retain: true
+ - pub_topic: ems_mode_selection
+   set_topic: "ems_mode_selection/set"
+   table: holding
+   type: uint16
+   address: 13050
+   value_map:
+     Self-consumption mode: 0x0
+     Compulsory mode: 0x2
+     External EMS mode: 0x3
+   retain: true
+ - pub_topic: charge_discharge_command
+   set_topic: "charge_discharge_command/set"
+   table: holding
+   type: uint16
+   address: 13051
+   value_map:
+     Charge: 0xaa
+     Discharge: 0xbb
+     Stop: 0xcc
+   pub_only_on_change: false
+ - pub_topic: charge_discharge_power
+   set_topic: "charge_discharge_power/set"
+   table: holding
+   type: uint16
+   address: 13052
+   pub_only_on_change: false
+
