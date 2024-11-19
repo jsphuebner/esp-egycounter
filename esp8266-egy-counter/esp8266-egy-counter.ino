@@ -70,8 +70,8 @@ File fsUploadFile;
 Ticker sta_tick;
 WiFiClient client;
 Adafruit_MQTT_Client mqtt(&client, "192.168.188.23", 1883);
-Adafruit_MQTT_Publish ebz = Adafruit_MQTT_Publish(&mqtt, "/ebz/readings");
-Adafruit_MQTT_Publish ebzRaw = Adafruit_MQTT_Publish(&mqtt, "/ebz/raw");
+Adafruit_MQTT_Publish ebz = Adafruit_MQTT_Publish(&mqtt, "/ebz/readings2");
+Adafruit_MQTT_Publish ebzRaw = Adafruit_MQTT_Publish(&mqtt, "/ebz/raw2");
 CounterValues values;
 
 void GetCounterValues(CounterValues& v, String& raw)

@@ -7,21 +7,24 @@ import paho.mqtt.client as mqtt
 import time, json, can
 
 def on_message(client, userdata, msg):
-    global batSoc, batVoltage, batCurrent, maxCurrent
+    global batSoc, batVoltage, maxCurrent
     
     if msg.topic == "pyPlc/soc":
         batSoc = float(msg.payload)
-    elif msg.topic == "pyPlc/pev_current":
+    elif msg.topic == "pyPlc/target_current":
         maxCurrent = float(msg.payload)
+    elif msg.topic == "pyPlc/charger_voltage":
+        batVoltage = float(msg.payload)
 
 with open("config.json") as configFile:
     config = json.load(configFile)
 
-client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, "bydcan")
+client = mqtt.Client(client_id = "bydcan")
 client.on_message = on_message
 client.connect(config['broker']['address'], 1883, 60)
 client.subscribe("pyPlc/soc")
-client.subscribe("pyPlc/pev_current")
+client.subscribe("pyPlc/target_current")
+client.subscribe("pyPlc/charger_voltage")
 batVoltage = 360
 batSoc = 50
 batCurrent = 1
