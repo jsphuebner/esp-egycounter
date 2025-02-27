@@ -60,6 +60,7 @@
 		"powerkp": 1,
 		"powerki": 0.2,
 		"chargevoltage": 52.6,
+		"evpower": 5000,
 		"priceuri": "https://api.awattar.at/v1/marketdata"
 	}
 }
