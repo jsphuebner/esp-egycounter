@@ -35,7 +35,7 @@ def on_message(client, userdata, msg):
         if abs(batCurrent) > 1:
             vtg = batPower / batCurrent
             if vtg > 330 and vtg < 390:
-                batVoltage = vtg
+                batVoltage = (vtg + 8 * batVoltage) / 9
         client.publish('pyPlc/charger_current', batCurrent)   
     elif msg.topic == "sungrow/bus_voltage":
         busVoltage = float(msg.payload)

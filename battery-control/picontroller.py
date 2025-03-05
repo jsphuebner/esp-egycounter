@@ -1,0 +1,26 @@
+class PiController:
+    def __init__(self, kp, ki, minimum, maximum):
+        self.kp = kp
+        self.ki = ki
+        self.errsum = 0
+        self.setMinMax(minimum, maximum)
+        
+    def setMinMax(self, minimum, maximum):
+        self.minimum = minimum
+        self.maximum = maximum
+        self.minint = minimum / self.ki
+        self.maxint = maximum / self.ki
+        
+    def resetIntegrator(self):
+        self.errsum = 0
+
+    def run(self, currentValue, targetValue):
+        err = currentValue - targetValue
+        self.errsum = self.errsum + err
+        self.errsum = min(self.maxint, self.errsum)
+        self.errsum = max(self.minint, self.errsum)
+        
+        y = self.kp * err + self.ki * self.errsum
+        y = min(self.maximum, y)
+        y = max(self.minimum, y)
+        return y

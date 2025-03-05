@@ -13,7 +13,7 @@ def on_message(client, ser485, msg):
 		finalPower = float(msg.payload)
 		finalPower = int(min(800, max(0, finalPower)))
 
-		print("Setting output power to " + str(finalPower))
+		#print("Setting output power to " + str(finalPower))
 		sys.stdout.flush()
 		
 		req[4] = int(finalPower / 256)
@@ -41,7 +41,7 @@ def queryStatus(ser):
 	if len(reply) == 15 and sum == reply[14]:
 		return (True, reply[4], (reply[5]*256 + reply[6]) / 10, (reply[7]*256 + reply[8]) / 10, reply[10], reply[11] / 2, (reply[12]*256 + reply[13]) / 10 - 20)
 	else:
-		print("invalid checksum")
+		#print("invalid checksum")
 		return (False, 0, 0, 0, 0, 0, 0)
 
 with open("config.json") as configFile:
@@ -54,7 +54,7 @@ ser485 = serial.Serial(config['inverter']['tty485'], 4800, timeout=0.1)
 serTtl = serial.Serial(config['inverter']['ttyTTL'], 9600, timeout=0.1)
 queryStatus.lastreply = []
 
-client = mqtt.Client("soyoSource", userdata=ser485)
+client = mqtt.Client(client_id = "soyoSource", userdata=ser485)
 client.on_message = on_message
 client.connect(config["broker"]["address"], 1883, 60)
 client.subscribe("/inverter/setpoint/power")

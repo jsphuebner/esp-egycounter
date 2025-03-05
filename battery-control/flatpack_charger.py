@@ -24,7 +24,7 @@ def on_message(client, hcs, msg):
 		
 		#When transitioning to 0 power preload integrator to a sag of 1.3V potentially caused by inverter
 		if power == 0:
-			powerRegulator.errsum = max(batVoltage, 44) / ki
+			powerRegulator.errsum = max(batVoltage - 1.3, 44) / ki
 			
 		powerSetpoint = power
 		powerTimeout = 20
@@ -44,7 +44,7 @@ def powerRegulator(actualPower, wantedPower, minVoltage, maxVoltage, kp, ki):
 with open("config.json") as configFile:
 	config = json.load(configFile)
 
-client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, "flatpackCharger")
+client = mqtt.Client(client_id="flatpackCharger")
 client.on_message = on_message
 client.connect(config['broker']['address'], 1883, 60)
 client.subscribe("/charger/setpoint/power")
@@ -54,7 +54,6 @@ client.subscribe("/battery/voltage")
 minVoltage = 43
 voltage = minVoltage
 maxVoltage = 0
-maxCurrent = 25
 powerSetpoint = 0
 filteredPowerSetpoint = 0
 powerTimeout = 0
@@ -64,6 +63,7 @@ ki = 0.0001
 serial = False
 lastNonZeroCommand = time.time() - 3570
 chargerState = True
+maxCurrent = 40
 
 powerRegulator.errsum = minVoltage / ki
 
@@ -100,7 +100,7 @@ while True:
 			regulatedVoltage = powerRegulator(power, powerSetpoint, minVoltage, maxVoltage, kp, ki) * 100
 			lobyte = int(regulatedVoltage % 256)
 			hibyte = int(regulatedVoltage / 256)
-			msg = can.Message(arbitration_id=0x05FF4005, data=[maxCurrent * 10, 0, lobyte, hibyte, lobyte, hibyte, lobyte, hibyte + 1] , is_extended_id=True)
+			msg = can.Message(arbitration_id=0x05FF4005, data=[0xF4, 1, lobyte, hibyte, lobyte, hibyte, lobyte, hibyte + 1] , is_extended_id=True)
 			bus.send(msg)
 		elif message.arbitration_id == 0x0501400C:
 			temperature = message.data[0]
@@ -109,7 +109,7 @@ while True:
 			client.publish("/charger/info/voltage", voltage)
 			client.publish("/charger/info/current", 0)
 			client.publish("/charger/info/power", 0)
-			client.publish("/charger/info/maxpower", 0)
+			client.publish("/charger/info/maxpower", 100)
 
 	if (time.time() - lastNonZeroCommand) > 3600 and chargerState:
 		GPIO.output(config['charger']['gpio'], GPIO.LOW)

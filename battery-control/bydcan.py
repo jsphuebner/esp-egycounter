@@ -82,24 +82,27 @@ def send60SMessages(bus):
     msg = can.Message(arbitration_id=0x190, data=[0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00], is_extended_id=False)
     bus.send(msg)
 
-sendInitialData(bus)
+#sendInitialData(bus)
 client.loop_start()
+lastReceived = 0
 
 while True:
     message = bus.recv(0)
     
     if message:
+        lastReceived = time.time()
         if message.arbitration_id == 0x151:
             if (message.data[0] & 0x01) == 0x01:
                 print("Received indentification request")
                 sendInitialData(bus);
         
-    send2SMessages(bus)
-    
-    if (runtime % 10) == 0:
-        send10SMessages(bus)
-    if (runtime % 60) == 0:
-        send60SMessages(bus)
+    if (time.time() - lastReceived) < 15: #only send if inverter is alive
+        send2SMessages(bus)
+        
+        if (runtime % 10) == 0:
+            send10SMessages(bus)
+        if (runtime % 60) == 0:
+            send60SMessages(bus)
 
     time.sleep(2)
     runtime = runtime + 2
