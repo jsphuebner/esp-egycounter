@@ -12,11 +12,14 @@ def calculateNetzero(ptotal):
         chargeLimit = mqttVal('pyPlc/target_current') * mqttVal('pyPlc/charger_voltage')
         chargeLimit = min(chargeLimit, config['netzero']['evpower'])
         controller.setMinMax(-chargeLimit, config['netzero']['evpower'])
+        controller.setMinOutput(100)
     else:
         controller.setMinMax(-min(mqttVal('/bms/info/chargepower'), mqttVal("/charger/info/maxpower")),
                              min(mqttVal('/bms/info/dischargepower'), mqttVal("/inverter/info/maxpower")))
+        controller.setMinOutput(20)
     
-    spnt = controller.run(ptotal, 5)
+    spnt = controller.run(ptotal, 0)
+        
     return spnt
 
 def calculateSpotmarket(netZeroPower):
@@ -36,7 +39,7 @@ def calculateSpotmarket(netZeroPower):
         elif price < mqttVal('/grid/dischargethresh') and netZeroPower > 0:
             netZeroPower = 0
             controller.resetIntegrator()
-    elif price < mqttVal('/grid/chargethresh'):
+    elif price < mqttVal('/grid/chargethresh') and mqttVal('/grid/chargepower') > -netZeroPower:
         netZeroPower = -mqttVal('/grid/chargepower')
         controller.resetIntegrator()
     elif price < mqttVal('/grid/dischargethresh') and netZeroPower > 0:
@@ -51,7 +54,7 @@ def sendChargeDischargeCommand(power):
     if mqttVal('sungrow/system_state') == "Forced Run" and not mqttVal('evfull'):
         client.publish("/charger/setpoint/power", 0)
         client.publish("/inverter/setpoint/power", 0)
-        client.publish("/battery/power", math.copysign(mqttVal("sungrow/battery_power"), -power))
+        client.publish("/battery/power", 0)
         client.publish("/bidi/setpoint/power", -power)
     elif power < 0: #charge stationary battery
         client.publish("/charger/setpoint/power", -power)
