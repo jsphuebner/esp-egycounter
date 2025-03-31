@@ -5,7 +5,7 @@ import paho.mqtt.client as mqtt
 import sys, time, yaml, json, logging, signal
 
 def on_message(client, userdata, msg):
-    global ccsState, invState, simulatedInletVoltage, batCurrent, busVoltage, batVoltage, batPower
+    global ccsState, invState, simulatedInletVoltage, batCurrent, busVoltage, batVoltage, prechargeVoltage, batPower
     
     if msg.topic == "/bidi/setpoint/power":
         direction = "Stop"
@@ -39,15 +39,19 @@ def on_message(client, userdata, msg):
         client.publish('pyPlc/charger_current', batCurrent)   
     elif msg.topic == "sungrow/bus_voltage":
         busVoltage = float(msg.payload)
-        if invState == "Standby" and busVoltage > 330:
-            batVoltage = busVoltage
+        if invState == "Standby":
+            if "PreCharging" in ccsState:
+                batVoltage = min(prechargeVoltage, busVoltage * 1.1)
+            else:
+                batVoltage = busVoltage
         client.publish("pyPlc/charger_voltage", batVoltage)
     elif msg.topic == "sungrow/battery_power":
         batPower = float(msg.payload)
     elif msg.topic == "pyPlc/target_voltage":
         # In precharge state the car delivers battery voltage via CCS
-        if "PreCharging" in ccsState:
-            batVoltage = float(msg.payload)
+        vtg = float(msg.payload)
+        if "PreCharging" in ccsState and vtg < 405:
+            prechargeVoltage = vtg
 
 with open("config.json") as configFile:
     config = json.load(configFile)
@@ -70,6 +74,7 @@ ccsState = ""
 batCurrent = 0
 busVoltage = 0
 batVoltage = 360
+prechargeVoltage = 0
 batPower = 0
 # Send this once for initializing the inverter for the first time
 #modbusclient.write_register(13083, 7) #Set Start Charging Power to 70 W, the lowest possible

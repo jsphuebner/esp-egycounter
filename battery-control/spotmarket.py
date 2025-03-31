@@ -30,7 +30,7 @@ def getCurrentPrice():
 with open("config.json") as configFile:
 	config = json.load(configFile)
 	
-client = mqtt.Client("spotmarket")
+client = mqtt.Client(client_id = "spotmarket")
 client.connect(config['broker']['address'], 1883, 60)
 
 priceList = { "data": [] }

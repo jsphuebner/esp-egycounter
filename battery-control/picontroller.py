@@ -1,5 +1,5 @@
 class PiController:
-    def __init__(self, kp, ki, minimum, maximum):
+    def __init__(self, kp, ki, minimum = 0, maximum = 0):
         self.kp = kp
         self.ki = ki
         self.errsum = 0
@@ -9,8 +9,12 @@ class PiController:
     def setMinMax(self, minimum, maximum):
         self.minimum = minimum
         self.maximum = maximum
-        self.minint = minimum / self.ki
-        self.maxint = maximum / self.ki
+        if self.ki != 0:
+            self.minint = minimum / self.ki
+            self.maxint = maximum / self.ki
+        else:
+            self.minint = 0
+            self.maxint = 0
         
     def setMinOutput(self, minOut):
         self.minOutput = minOut

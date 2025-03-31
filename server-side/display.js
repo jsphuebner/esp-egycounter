@@ -60,7 +60,7 @@ function loadSpot()
 		}
 		var span = document.getElementById("ecar");
 		var value = parseFloat(span.innerText);
-		value += values['pl3'] / (1000*3600);
+		value += values['pv2g'] / (1000*3600);
 		span.innerText = value;
 		
 		addToPlot(values);
@@ -111,7 +111,7 @@ function generateChart()
 			}
 		} });
 
-	items = { names: [ "ptotal", "pbat" ], axes: [ "left", "left" ] };
+	items = { names: [ "ptotal", "pbat", "pv2g" ], axes: [ "left", "left", "left" ] };
 	var colours = [ 'rgb(255, 99, 132)', 'rgb(54, 162, 235)', 'rgb(255, 159, 64)', 'rgb(153, 102, 255)', 'rgb(255, 205, 86)', 'rgb(75, 192, 192)' ];
 
 	chart.config.data.datasets = new Array();

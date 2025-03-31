@@ -7,10 +7,12 @@ import paho.mqtt.client as mqtt
 import time, json, can
 
 def on_message(client, userdata, msg):
-    global batSoc, batVoltage, maxCurrent
+    global batSoc, batVoltage, maxCurrent, socLimit
     
     if msg.topic == "pyPlc/soc":
         batSoc = float(msg.payload)
+    elif msg.topic == "pyPlc/soclimit":
+        socLimit = float(msg.payload)
     elif msg.topic == "pyPlc/target_current":
         maxCurrent = float(msg.payload)
     elif msg.topic == "pyPlc/charger_voltage":
@@ -23,10 +25,12 @@ client = mqtt.Client(client_id = "bydcan")
 client.on_message = on_message
 client.connect(config['broker']['address'], 1883, 60)
 client.subscribe("pyPlc/soc")
+client.subscribe("pyPlc/soclimit")
 client.subscribe("pyPlc/target_current")
 client.subscribe("pyPlc/charger_voltage")
 batVoltage = 360
 batSoc = 50
+socLimit = 85
 batCurrent = 1
 maxCurrent = 15
 runtime = 0
@@ -57,7 +61,12 @@ def sendInitialData(bus):
     bus.send(msg)
     
 def send2SMessages(bus):
+    global batSoc, socLimit
+    
     limitedChargeCurrent = int(min(maxCurrent, 20) * 10)
+    
+    if batSoc >= socLimit:
+        limitedChargeCurrent = 0
 
     msg = can.Message(arbitration_id=0x110, data=[0x0F, 0xA0, 0x0B, 0xB8, 0x00, 0xC8, 0x00, limitedChargeCurrent], is_extended_id=False)
     bus.send(msg)

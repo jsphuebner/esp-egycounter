@@ -41,7 +41,9 @@ SELECT
 	SUM(pl2)/(1000*3600) as el2,
 	SUM(pl3)/(1000*3600) as el3,
 	SUM(if(pbat>0, pbat, 0))/(1000*3600) as ebatin,
-	SUM(if(pbat<0, pbat, 0))/(1000*3600) as ebatout
+	SUM(if(pbat<0, pbat, 0))/(1000*3600) as ebatout,
+	SUM(if(pv2g<0, pv2g, 0))/(1000*3600) as ev2gin,
+	SUM(if(pv2g>0, pv2g, 0))/(1000*3600) as ev2gout
 FROM
 	ebzdata
 WHERE
@@ -80,7 +82,7 @@ else
 
 $startId = $sqlDrv->scalarQuery("SELECT id FROM ebzdata WHERE time > '$start' LIMIT 1");
 $endId = $sqlDrv->scalarQuery("SELECT id FROM ebzdata WHERE time < '$stop' ORDER BY id DESC LIMIT 1");
-$sql = "SELECT MIN(time) time,AVG(ptotal) ptotal, AVG(pbat) pbat FROM ebzdata WHERE id BETWEEN $startId AND $endId GROUP BY SUBSTRING(time, 1, 16)";
+$sql = "SELECT MIN(time) time,AVG(ptotal) ptotal, AVG(pbat) pbat, AVG(pv2g) pv2g FROM ebzdata WHERE id BETWEEN $startId AND $endId GROUP BY SUBSTRING(time, 1, 16)";
 
 //$time_pre = microtime(true);
 foreach ($sqlDrv->arrayQuery($sql) as $row)
@@ -104,16 +106,15 @@ $sql = "select sum(etotalout) from ebzdaily";
 $unused = $sqlDrv->scalarQuery($sql);
 $sql = "select sum(ptotal)/(1000*3600) from ebzdata where ptotal<0 and time > '$end'";
 $unused += $sqlDrv->scalarQuery($sql);
-$sql = "select sum(el3) from ebzdaily";
+$sql = "select sum(v2gin+v2gout) from ebzdaily";
 $ecar = $sqlDrv->scalarQuery($sql);
-//add energy from temporary 3-phase charging
-$sql = "select sum(pl3)/(1000*3600)+174+14 from ebzdata where time > '$end'";
+$sql = "select -sum(pv2g)/(1000*3600) from ebzdata where time > '$end'";
 $ecar += $sqlDrv->scalarQuery($sql);
 $sql = "select sum(ebatout) from ebzdaily";
 $discharged = $sqlDrv->scalarQuery($sql);
 $sql = "select sum(pbat)/(1000*3600) from ebzdata where pbat<0 and time > '$end'";
 $discharged += $sqlDrv->scalarQuery($sql);
-$sql = "select 3.1+sum(ebatin) from ebzdaily"; //correct for missing charge logs
+$sql = "select sum(ebatin) from ebzdaily";
 $charged = $sqlDrv->scalarQuery($sql);
 $sql = "select sum(pbat)/(1000*3600) from ebzdata where pbat>0 and time > '$end'";
 $charged += $sqlDrv->scalarQuery($sql);
@@ -124,11 +125,9 @@ $charged += $sqlDrv->scalarQuery($sql);
 <body onload="onLoad()">
 <p><b>Timestamp</b><span class='value' id='time'></span>
 <p><b>E-Total</b> [kWh]<span class='value' id='etotal'></span>
-<p><b>P-Total</b> [W]<span class='value' id='ptotal'></span>
+<p><b>P-Total/V2G/Bat</b> [W]<span class='value' id='ptotal'></span><span class='value2' id='pv2g'></span><span class='value3' id="pbat"></span>
 <p><b>P-L1/2/3</b> [W]<span class='value' id='pl1'></span><span class='value2' id='pl2'></span><span class='value3' id='pl3'></span>
-<p><b>P-Bat</b> [W] <span class='value' id="pbat"></span>
-<p><b>E-Bat Chg</b> [kWh] <span class='value' id="charged"><?php echo $charged ?></span>
-<p><b>E-Bat Dis</b> [kWh] <span class='value' id="discharged"><?php echo $discharged ?></span>
+<p><b>E-Bat Chg/Dis</b> [kWh] <span class='value' id="charged"><?php echo $charged ?></span><span class='value3' id="discharged"><?php echo $discharged ?></span>
 <p><b>PV ungenutzt</b> [kWh] <span class='value' id="pvunused"><?php echo $unused ?></span>
 <p><b>E-Auto</b> [kWh] <span class='value' id="ecar"><?php echo $ecar ?></span>
 
@@ -149,7 +148,7 @@ function check_in_range($start_date, $end_date, $date_from_user)
   return (($user_ts >= $start_ts) && ($user_ts <= $end_ts));
 }
 
-$sql = "select substring(time, 1, 10) date,etotal,el3 from ebzdaily";
+$sql = "select substring(time, 1, 10) date,etotal,v2gin+v2gout as ecar from ebzdaily";
 $rows = $sqlDrv->arrayQuery($sql);
 
 $lastEtotal = $rows[0]['etotal'];
@@ -162,10 +161,13 @@ foreach ($rows as $row)
 {
 	$date = $row['date'];
 	$etotal = $row['etotal'];
-	if (($date < '2022-07-21' || $date > '2022-09-02') && $date != '2023-05-07')
+	$ecar = 0;
+	/*if (($date < '2022-07-21' || $date > '2022-09-02') && $date != '2023-05-07' && $date < '2024-11-13')
 		$ecar = round($row['el3'], 2);
 	else
-		$ecar = 3 * round($row['el3'], 2);
+		$ecar = 3 * round($row['el3'], 2);*/
+
+	$ecar = round($row['ecar'], 2);
 	$delta = round($etotal - $lastEtotal, 2);
 	$eCarSum += $ecar;
 	$eCarTotal += $ecar;

@@ -6,66 +6,71 @@ import paho.mqtt.client as mqtt
 from picontroller import PiController
 
 def calculateNetzero(ptotal):
-    global config, controller
+    global config, v2gController, batController
     
-    if mqttVal('sungrow/system_state', '') == "Forced Run" and not mqttVal('evfull'):
+    if mqttVal('sungrow/system_state') == "Forced Run":
+        v2gSpnt = v2gController.run(ptotal, 0)
+        if mqttVal('evfull') and ptotal < 0:
+            batSpnt = batController.run(ptotal, 0)
+            v2gController.resetIntegrator()
+        else:
+            batSpnt = 0
+            batController.resetIntegrator()
+    else:
+        v2gSpnt = 0
+        batSpnt = batController.run(ptotal, 0)
+        v2gController.resetIntegrator()
+        
+    return (batSpnt, v2gSpnt)
+
+def setControllerLimits():
+    global config, v2gController, batController
+    
+    price = mqttVal("/spotmarket/pricenow")
+    if price > mqttVal('/grid/dischargethresh'):
+        batDisLimit = 1
+    else:
+        batDisLimit = 0
+
+    if mqttVal('evfull'):
+        chargeLimit = 0
+    else:
         chargeLimit = mqttVal('pyPlc/target_current') * mqttVal('pyPlc/charger_voltage')
         chargeLimit = min(chargeLimit, config['netzero']['evpower'])
-        controller.setMinMax(-chargeLimit, config['netzero']['evpower'])
-        controller.setMinOutput(100)
-    else:
-        controller.setMinMax(-min(mqttVal('/bms/info/chargepower'), mqttVal("/charger/info/maxpower")),
-                             min(mqttVal('/bms/info/dischargepower'), mqttVal("/inverter/info/maxpower")))
-        controller.setMinOutput(20)
-    
-    spnt = controller.run(ptotal, 0)
-        
-    return spnt
+    v2gController.setMinMax(-chargeLimit, config['netzero']['evpower'] * batDisLimit)
+    batController.setMinMax(-min(mqttVal('/bms/info/chargepower'), mqttVal("/charger/info/maxpower")),
+                             min(mqttVal('/bms/info/dischargepower') * batDisLimit, mqttVal("/inverter/info/maxpower")))
 
-def calculateSpotmarket(netZeroPower):
-    global config, controller, mqttData
+def calculateSpotmarket(batSpnt, v2gSpnt):
+    global config, v2gController, batController
 
     price = mqttVal("/spotmarket/pricenow")
     
-    if mqttVal('pyPlc/soc') >= mqttVal('pyPlc/soclimit', 85):
-        mqttData['evfull'] = True
-    elif mqttVal('pyPlc/soc') < (mqttVal('pyPlc/soclimit', 85) - 3):
-        mqttData['evfull'] = False
+    if mqttVal('sungrow/system_state') == "Forced Run":
+        if price < mqttVal("/grid/evchargethresh") and not mqttVal('evfull'):
+            v2gSpnt = -config['netzero']['evpower']
+            v2gController.resetIntegrator()
+    else:
+        v2gSpnt = 0
+        v2gController.resetIntegrator()
     
-    if mqttVal('sungrow/system_state') == "Forced Run" and not mqttVal('evfull'):
-        if mqttVal('sungrow/system_state') == "Forced Run" and price < mqttVal("/grid/evchargethresh"):
-            netZeroPower = -config['netzero']['evpower']
-            controller.resetIntegrator()
-        elif price < mqttVal('/grid/dischargethresh') and netZeroPower > 0:
-            netZeroPower = 0
-            controller.resetIntegrator()
-    elif price < mqttVal('/grid/chargethresh') and mqttVal('/grid/chargepower') > -netZeroPower:
-        netZeroPower = -mqttVal('/grid/chargepower')
-        controller.resetIntegrator()
-    elif price < mqttVal('/grid/dischargethresh') and netZeroPower > 0:
-        netZeroPower = 0
-        controller.resetIntegrator()
-        
-    return netZeroPower
+    if price < mqttVal('/grid/chargethresh') and mqttVal('/grid/chargepower') > -batSpnt:
+        batSpnt = -mqttVal('/grid/chargepower')
+        batController.resetIntegrator()
+            
+    return (batSpnt, v2gSpnt)
 
-def sendChargeDischargeCommand(power):
-    global mqttData
-    
-    if mqttVal('sungrow/system_state') == "Forced Run" and not mqttVal('evfull'):
-        client.publish("/charger/setpoint/power", 0)
-        client.publish("/inverter/setpoint/power", 0)
-        client.publish("/battery/power", 0)
-        client.publish("/bidi/setpoint/power", -power)
-    elif power < 0: #charge stationary battery
-        client.publish("/charger/setpoint/power", -power)
+def sendChargeDischargeCommand(batSpnt, v2gSpnt):
+    client.publish("/bidi/setpoint/power", -v2gSpnt)
+
+    if batSpnt < 0: #charge stationary battery
+        client.publish("/charger/setpoint/power", -batSpnt)
         client.publish("/battery/power", mqttVal("/charger/info/power"))
         client.publish("/inverter/setpoint/power", 0)
-        client.publish("/bidi/setpoint/power", 0)
     else: #discharge stationary battery
         client.publish("/charger/setpoint/power", 0)
-        client.publish("/inverter/setpoint/power", power)
+        client.publish("/inverter/setpoint/power", batSpnt)
         client.publish("/battery/power", -mqttVal("/inverter/info/power"))
-        client.publish("/bidi/setpoint/power", 0)
 
 def on_message(client, userdata, msg):
     global mqttData
@@ -76,13 +81,21 @@ def on_message(client, userdata, msg):
             ptotal = data['ptotal']
             client.publish("/meter/power", ptotal)
             client.publish("/meter/energy", data['etotal'])
-            ptotal = (mqttData['ptotal'] + ptotal) / 2
+            ptotal = (mqttVal('ptotal') + ptotal) / 2
             mqttData['ptotal'] = ptotal
-            power = calculateNetzero(ptotal)
-            power = calculateSpotmarket(power)
-            sendChargeDischargeCommand(power)
+            setControllerLimits()
+            (batSpnt, v2gSpnt) = calculateNetzero(ptotal)
+            (batSpnt, v2gSpnt) = calculateSpotmarket(batSpnt, v2gSpnt)
+            sendChargeDischargeCommand(batSpnt, v2gSpnt)
         except ValueError:
             return
+    elif msg.topic == 'pyPlc/soc':
+        soc = float(msg.payload)
+        mqttData[msg.topic] = soc
+        if soc >= mqttVal('pyPlc/soclimit', 85):
+            mqttData['evfull'] = True
+        elif soc < (mqttVal('pyPlc/soclimit', 85) - 3):
+            mqttData['evfull'] = False
     else:
         val = msg.payload.decode("utf-8")
         if bool(re.match(r'^-?\d+[\.,]*\d*$', val)):
@@ -125,10 +138,10 @@ client.subscribe("sungrow/battery_power")
 
 client.publish("/charger/setpoint/voltage", config['netzero']['chargevoltage'])
 
-mqttData = {
-   'ptotal': 0
-}
-controller = PiController(config['netzero']['powerkp'], config['netzero']['powerki'], -1000, 1000)
+mqttData = {}
+controller = PiController(config['netzero']['powerkp'], config['netzero']['powerki'])
+batController = PiController(config['netzero']['powerkp'], config['netzero']['powerki'])
+v2gController = PiController(config['netzero']['powerkp'], config['netzero']['powerki'], -config['netzero']['evpower'], config['netzero']['evpower'])
 
 client.loop_forever()
 
