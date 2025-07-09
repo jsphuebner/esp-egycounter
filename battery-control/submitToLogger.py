@@ -17,7 +17,7 @@ def on_message(client, userdata, msg):
 			print("Error in JSON string " + msg.payload)
 	elif msg.topic == "/battery/power":
 		on_message.pbat = float(msg.payload)
-	elif msg.topic == "sungrow/total_active_power":
+	elif msg.topic == "/bidi/power":
 		on_message.pv2g = float(msg.payload)
 
 
@@ -29,7 +29,8 @@ client.on_message = on_message
 client.connect(config['broker']['address'], 1883, 60)
 client.subscribe(config['meter']['topic'])
 client.subscribe("/battery/power")
-client.subscribe("sungrow/total_active_power")
+client.subscribe("/bidi/power")
+client.subscribe("sungrow/signed_battery_power")
 on_message.pbat = 0
 on_message.pv2g = 0
 on_message.http = urllib3.PoolManager()

@@ -4,7 +4,7 @@ device_address: 1
 update_rate: 1
 address_offset: -1
 variant: tcp
-scan_batching: 50
+scan_batching: 100
 word_order: lowhigh
 registers:
  - pub_topic: device_type
@@ -33,6 +33,22 @@ registers:
    table: input
    address: 5021
    scale: 0.1
+   pub_only_on_change: false
+ - pub_topic: mppt1_voltage
+   table: input
+   address: 5011
+   scale: 0.1
+   pub_only_on_change: false
+ - pub_topic: mppt1_current
+   table: input
+   address: 5012
+   scale: 0.1
+   pub_only_on_change: false
+ - pub_topic: pv_power
+   table: input
+   address: 5017
+   type: uint32
+   scale: 1
    pub_only_on_change: false
  - pub_topic: phase_a_current
    table: input
@@ -103,6 +119,12 @@ registers:
      Maintain Run: 0x400
      Forced Run: 0x800
      Offgrid Run: 0x1000
+   pub_only_on_change: false
+ - pub_topic: daily_pv_energy
+   table: input
+   type: uint16
+   address: 13002
+   scale: 0.1
    pub_only_on_change: false
  - pub_topic: battery_voltage
    table: input
@@ -198,4 +220,24 @@ registers:
    type: uint16
    address: 13052
    pub_only_on_change: false
+ - pub_topic: export_power_limit
+   set_topic: "export_power_limit/set"
+   table: holding
+   type: uint16
+   address: 13074
+   pub_only_on_change: false
+ - pub_topic: export_power_limit_ena
+   set_topic: "export_power_limit_ena/set"
+   table: holding
+   type: uint16
+   address: 13087
+   pub_only_on_change: false
+   value_map:
+     Enable: 0xaa
+     Disable: 0x55
+ - pub_topic: dummy1
+   table: holding
+   type: uint16
+   address: 13088
+   pub_only_on_change: true
 

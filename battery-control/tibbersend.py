@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import paho.mqtt.client as mqtt
-import json, random
+import json, random, time
 from datetime import datetime
 
 def tibber_to_pulse_message(client, userdata, msg):
@@ -37,7 +37,7 @@ def SendTjhMetric(client, tjhMetric, unix_timestamp, pubCnt):
     jstr = json.dumps(tjhMetric)
     topic = mqttBaseTopic + "/TJH01/" + config['tibber']['bridgeid'] + "/metric"
     client.publish(topic, jstr)
-    print("Sent TJH01 metric to " + topic)
+    print(f"[{unix_timestamp}] Sent TJH01 metric to {topic}")
 
 def SendTfdMetric(client, tfdMetric, unix_timestamp):
     global config
@@ -52,7 +52,7 @@ def SendTfdMetric(client, tfdMetric, unix_timestamp):
     jstr = json.dumps(tfdMetric)
     topic = mqttBaseTopic + "/TFD01/" + config['tibber']['eui'] + "/metric"
     client.publish(topic, jstr)
-    print("Sent TFD01 metric to " + topic)
+    print(f"[{unix_timestamp}] Sent TFD01 metric to {topic}")
                
 with open("tibber/TFD01_metric.json") as jsonFile:
 	tfdMetric = json.load(jsonFile)
@@ -66,13 +66,13 @@ with open("tibber/TJH01_event.json") as jsonFile:
 with open("config.json") as configFile:
 	config = json.load(configFile)
 	
-client = mqtt.Client(config['tibber']['bridgeid'])
+client = mqtt.Client(client_id = config['tibber']['bridgeid'])
 client.on_message = tibber_to_pulse_message
 client.on_connect = tibber_connect
 client.tls_set("tibber/ca.pem", "tibber/cert.pem", "tibber/private.pem")
 client.connect(config['tibber']['broker'], 8883)
 
-localclient = mqtt.Client("tibberSender")
+localclient = mqtt.Client(client_id = "tibberSender")
 localclient.on_message = onMeterData
 localclient.connect(config['broker']['address'], 1883, 60)
 localclient.subscribe(config['meter']['rawtopic'])
@@ -109,4 +109,5 @@ while True:
     
     client.loop(timeout=0.1)
     localclient.loop(timeout=0.1)
+    time.sleep(0.5)
 

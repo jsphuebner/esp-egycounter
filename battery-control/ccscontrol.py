@@ -58,10 +58,10 @@ while True:
         else:
             mqttclient.publish("pyPlc/enabled", 0)
 
-    if ccsState not in ["Waiting f AppHandShake", "Session established", "ContractAuthentication", "CableCheck", "PreCharging", "PowerDelivery"]:
-        GPIO.output("P9_23", GPIO.LOW)
-    else:
+    if ccsState in ["Waiting f AppHandShake", "Session established", "ContractAuthentication", "CableCheck", "PreCharging", "PowerDelivery"]:
         GPIO.output("P9_23", GPIO.HIGH)
+    else:
+        GPIO.output("P9_23", GPIO.LOW)
         
     if switchState:
         switchOffTime = 0

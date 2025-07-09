@@ -5,23 +5,22 @@ import paho.mqtt.client as mqtt
 import sys, time, yaml, json, logging, signal
 
 def on_message(client, userdata, msg):
-    global ccsState, invState, simulatedInletVoltage, batCurrent, busVoltage, batVoltage, prechargeVoltage, batPower
+    global ccsState, invState, simulatedInletVoltage, batCurrent, busVoltage, batVoltage, prechargeVoltage, batPower, acPower, pvPower
     
     if msg.topic == "/bidi/setpoint/power":
         direction = "Stop"
         power = float(msg.payload)
-        if ccsState == "CurrentDemand":
-            if power > 0:
-                direction = "Charge"
-            elif power < 0:
-                direction = "Discharge"
+        if power > 0:
+            direction = "Charge"
+        elif power < 0:
+            direction = "Discharge"
         client.publish("sungrow/charge_discharge_command/set", direction)
         client.publish("sungrow/charge_discharge_power/set", abs(power))
     elif msg.topic == "pyPlc/fsm_state":
         ccsState = msg.payload.decode("utf-8")
         #if we leave CurrentDemand immediately shut down inverter
-        if ccsState != "CurrentDemand":
-            client.publish("sungrow/charge_discharge_command/set", "Stop")
+        #if ccsState != "CurrentDemand":
+        #    client.publish("sungrow/charge_discharge_command/set", "Stop")
 
         #if "CableCheck" in ccsState:
         #    simulatedInletVoltage = 0
@@ -33,20 +32,29 @@ def on_message(client, userdata, msg):
     elif msg.topic == "sungrow/battery_current":
         batCurrent = float(msg.payload)
         if abs(batCurrent) > 1:
-            vtg = batPower / batCurrent
-            if vtg > 330 and vtg < 390:
+            vtg = batPower / (abs(batCurrent) + 0.07)
+            if vtg > 330 and vtg < 402:
                 batVoltage = (vtg + 8 * batVoltage) / 9
         client.publish('pyPlc/charger_current', batCurrent)   
     elif msg.topic == "sungrow/bus_voltage":
         busVoltage = float(msg.payload)
         if invState == "Standby":
             if "PreCharging" in ccsState:
-                batVoltage = min(prechargeVoltage, busVoltage * 1.1)
+                batVoltage = min(prechargeVoltage, busVoltage * 1.15)
             else:
                 batVoltage = busVoltage
         client.publish("pyPlc/charger_voltage", batVoltage)
+    elif msg.topic == "sungrow/total_active_power":
+        acPower = float(msg.payload)
+    elif msg.topic == "sungrow/pv_power":
+        pvPower = float(msg.payload)
     elif msg.topic == "sungrow/battery_power":
         batPower = float(msg.payload)
+        if (acPower + pvPower - 70) < 0:
+            signedPower = -batPower
+        else:
+            signedPower = batPower
+        client.publish("sungrow/signed_battery_power", signedPower)
     elif msg.topic == "pyPlc/target_voltage":
         # In precharge state the car delivers battery voltage via CCS
         vtg = float(msg.payload)
@@ -65,6 +73,8 @@ mqttclient.subscribe("sungrow/battery_current")
 mqttclient.subscribe("sungrow/bus_voltage")
 mqttclient.subscribe("sungrow/battery_power")
 mqttclient.subscribe("sungrow/system_state")
+mqttclient.subscribe("sungrow/total_active_power")
+mqttclient.subscribe("sungrow/pv_power")
 mqttclient.subscribe("pyPlc/target_voltage")
 #mqttclient.loop_start()
 ccsState = ""
@@ -76,6 +86,8 @@ busVoltage = 0
 batVoltage = 360
 prechargeVoltage = 0
 batPower = 0
+acPower = 0
+pvPower = 0
 # Send this once for initializing the inverter for the first time
 #modbusclient.write_register(13083, 7) #Set Start Charging Power to 70 W, the lowest possible
 #modbusclient.write_register(13084, 7) #Set Start Discharging Power to 70 W, the lowest possible

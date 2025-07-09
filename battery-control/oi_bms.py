@@ -1,60 +1,70 @@
 #!/usr/bin/python3
 
-import can, time, json
+import urllib.request, socket
 import paho.mqtt.client as mqtt
+import can, time, json
 
 with open("config.json") as configFile:
-    config = json.load(configFile)
+	config = json.load(configFile)
 
-client = mqtt.Client("oibms")
-client.will_set("/bms/info/dischargepower", 0)
+client = mqtt.Client(client_id="oibms")
+client.keepalive = 10
 client.will_set("/bms/info/chargepower", 0)
+client.will_set("/bms/info/dischargepower", 0)
 client.connect(config['broker']['address'], 1883, 60)
-cobId = 0x580 + config['bms']['nodeid'];
+lastPublish = { 0x1f4: 0, 0x1f5: 0 }
 
-filters = [{"can_id": cobId, "can_mask": 0x7FF, "extended": False}]
+filters = [{"can_id": 0x1F4, "can_mask": 0x7F0, "extended": False}]
 bus=can.interface.Bus(bustype='socketcan', channel=config['bms']['can'], can_filters = filters)
-idx = 0;
-items = config['bms']['values']
-names = list(items)
-lookupById = dict((v,k) for k,v in items.items())
-lookupById[5] = "balance"
+counters = {}
 
-while True:
-    bytes = [ 0x40, items[names[idx]] >> 8, 0x21, items[names[idx]] & 0xFF, 0, 0, 0, 0]
-    msg = can.Message(arbitration_id=0x600 + config['bms']['nodeid'], data=bytes, is_extended_id=False)
-    bus.send(msg)
-    idx = (idx + 1) % len(items)
-    message = bus.recv(0)
-	
-    if message:
-        if message.arbitration_id == cobId:
-            value = (message.data[4] + (message.data[5] << 8) + (message.data[6] << 16)) / 32
-            name = lookupById[message.data[1] * 256 + message.data[3]]
-            client.publish("/bms/info/" + name, value)
+for cobId in range(500, 501 + config['bms']['modulecount']):
+    counters[cobId] = [ 0, 1, 2, 3 ]
+    counters[cobId][0] = time.time()
+    counters[cobId][1] = time.time()
+    counters[cobId][2] = time.time()
+    counters[cobId][3] = time.time()
+
+def checkCounters(counters):
+    alive = True
+    for cobId in counters:
+        for timestamp in counters[cobId]:
+            alive = alive and (timestamp - time.time()) < 2
+    return alive
+
+for message in bus:
+    counter = message.data[7] >> 6 if message.arbitration_id == 0x1F4 else message.data[3] >> 6
+    counters[message.arbitration_id][counter] = time.time()
+    if message.arbitration_id == 0x1F4:
+        ccl = float(message.data[0]) / 10
+        dcl = float((message.data[1] >> 3) + ((message.data[2] & 0x3f) << 5)) / 10
+        soc = float((message.data[2] >> 6) + (message.data[3] << 2)) / 10
+        current = float(int.from_bytes(message.data[4:6], byteorder='little', signed=True)) / 10
+        packVoltage = message.data[6] + ((message.data[7] & 0x3) << 8)
+        
+        if soc < 10:
+            soc = 10 #Don't allow SoC < 10%
             
-            if name == config['bms']['minvtgname']:
-                maxDischargePower = config['bms']['plimit'] * (value - config['bms']['cellmin']) / 30
-                maxDischargePower = min(maxDischargePower, config['bms']['plimit'])
-                maxDischargePower = max(maxDischargePower, 0)
-                client.publish("/bms/info/dischargepower", maxDischargePower)
-                bytes[0] = 0x23
-                bytes[1] = 0
-                bytes[3] = 5
-                if value > config['bms']['balancestart']: #enable balancing
-                    bytes[4] = 32
-                else: #disable balancing
-                    bytes[4] = 0
-                msg = can.Message(arbitration_id=0x600 + config['bms']['nodeid'], data=bytes, is_extended_id=False)
-                bus.send(msg)
-            elif name == config['bms']['maxvtgname']:
-                maxChargePower = config['bms']['plimit'] * (config['bms']['cellmax'] - value) / 30
-                maxChargePower = min(maxChargePower, config['bms']['plimit'])
-                maxChargePower = max(maxChargePower, 0)
-                client.publish("/bms/info/chargepower", maxChargePower)
-            elif name == config['bms']['totalvtgname']:
-                client.publish("/battery/voltage", value / 1000 + 3.3)
-                
+        if not checkCounters(counters):
+            ccl = 0
+            dcl = 0
+        
+        if (time.time() - lastPublish[0x1f4]) >= 1:
+            client.publish("/bms/info/dischargepower", dcl * packVoltage)
+            client.publish("/bms/info/chargepower", ccl * packVoltage)
+            client.publish("/bms/info/soc", soc)
+            client.publish("/bms/info/current", current)
+            client.publish("/bms/info/packvoltage", packVoltage)
+            lastPublish[0x1f4] = time.time()
+            client.loop()
 
-    client.loop(timeout=0.1)
-    time.sleep(0.1)
+    elif message.arbitration_id == 0x1F5:
+        umin = message.data[0] + (message.data[1] << 8)
+        umax = message.data[2] + ((message.data[3] & 0x3f) << 8)
+        
+        if (time.time() - lastPublish[0x1f5]) >= 1:
+            client.publish("/bms/info/umin", umin)
+            client.publish("/bms/info/umax", umax)
+            lastPublish[0x1f5] = time.time()
+
+

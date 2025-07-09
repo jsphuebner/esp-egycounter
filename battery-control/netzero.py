@@ -9,72 +9,58 @@ def calculateNetzero(ptotal):
     global config, v2gController, batController
     
     v2gSpnt = v2gController.run(ptotal, 0)
-    batSpnt = batController.run(ptotal, 0)
-    return (batSpnt, v2gSpnt)
+    return v2gSpnt
 
 def setControllerLimits():
-    global config, v2gController, batController
+    global config, v2gController
     
-    price = mqttVal("/spotmarket/pricenow")
-    if price > mqttVal('/grid/dischargethresh'):
-        batDisLimit = 1
+    chargeLimit = config['netzero']['evpower']
+    if mqttVal('pyPlc/fsm_state') == "CurrentDemand":
+        chargeLimit = min(chargeLimit, mqttVal('pyPlc/target_current') * mqttVal('pyPlc/charger_voltage'))
+        if mqttVal('evfull'):
+            chargeLimit = 0
     else:
-        batDisLimit = 0
-        
-    if mqttVal('evfull'):
-        chargeLimit = 0
-    else:
-        chargeLimit = mqttVal('pyPlc/target_current') * mqttVal('pyPlc/charger_voltage')
-        chargeLimit = min(chargeLimit, config['netzero']['evpower'])
-        
-    if mqttVal("/charger/info/power") > 50:
-        disLimit = 0
-    else:
-        disLimit = config['netzero']['evpower'] * batDisLimit
-        
-    v2gController.setMinMax(-chargeLimit, disLimit)
-    
-    stationaryChargeLimit = -min(mqttVal('/bms/info/chargepower'), mqttVal("/charger/info/maxpower"))
-    stationaryDisLimit = min(mqttVal('/bms/info/dischargepower') * batDisLimit, mqttVal("/inverter/info/maxpower"))
-    
+        chargeLimit = min(chargeLimit, mqttVal('/bms/info/chargepower'))
+    dischargeLimit = min(config['netzero']['evpower'], mqttVal('/bms/info/dischargepower'))
+               
     if mqttVal('sungrow/system_state') == "Forced Run":
-        if mqttVal('evfull') and mqttVal("sungrow/total_active_power") > 0:
-            batController.setMinMax(stationaryChargeLimit, 0)
-        else:
-            batController.setMinMax(0, 0)
+        v2gController.setMinMax(-chargeLimit, dischargeLimit)
     else:
-        batController.setMinMax(stationaryChargeLimit, stationaryDisLimit)
+        v2gController.setMinMax(0, 0)
 
-def calculateSpotmarket(batSpnt, v2gSpnt):
-    global config, v2gController, batController
+def calculateSpotmarket(batSpnt):
+    global config, batController
 
     price = mqttVal("/spotmarket/pricenow")
     
-    if mqttVal('sungrow/system_state') == "Forced Run" and not mqttVal('evfull'):
+    #We are connected to the EV battery and it is not yet full
+    if mqttVal('pyPlc/fsm_state') == "CurrentDemand": 
         #if price > mqttVal('/grid/dischargethresh'):
         #    batSpnt = min(mqttVal('/bms/info/dischargepower'), mqttVal("/inverter/info/maxpower"))
         if price < mqttVal("/grid/evchargethresh"):
-            v2gSpnt = mqttVal('pyPlc/target_current') * mqttVal('pyPlc/charger_voltage')
-            v2gSpnt = -min(v2gSpnt, config['netzero']['evpower'])
+            batSpnt = mqttVal('pyPlc/target_current') * mqttVal('pyPlc/charger_voltage')
+            batSpnt = -min(batSpnt, config['netzero']['evpower'])
             v2gController.resetIntegrator()
-    
-    if price < mqttVal('/grid/chargethresh') and mqttVal('/grid/chargepower') > -batSpnt:
-        batSpnt = -mqttVal('/grid/chargepower')
-        batController.resetIntegrator()
+    else:
+        if price < mqttVal('/grid/chargethresh') and mqttVal('/grid/chargepower') > -batSpnt:
+            batSpnt = -mqttVal('/grid/chargepower')
+            v2gController.resetIntegrator()
             
-    return (batSpnt, v2gSpnt)
+    return batSpnt
 
-def sendChargeDischargeCommand(batSpnt, v2gSpnt):
+def regulate(ptotal):
+    mqttData['ptotal'] = ptotal
+    setControllerLimits()
+    v2gSpnt = calculateNetzero(ptotal)
+    v2gSpnt = calculateSpotmarket(v2gSpnt)
     client.publish("/bidi/setpoint/power", -v2gSpnt)
-
-    if batSpnt < 0: #charge stationary battery
-        client.publish("/charger/setpoint/power", -batSpnt)
-        client.publish("/battery/power", mqttVal("/charger/info/power"))
-        client.publish("/inverter/setpoint/power", 0)
-    else: #discharge stationary battery
-        client.publish("/charger/setpoint/power", 0)
-        client.publish("/inverter/setpoint/power", batSpnt)
-        client.publish("/battery/power", -mqttVal("/inverter/info/power"))
+    
+    if mqttVal('pyPlc/fsm_state') == "CurrentDemand":
+        client.publish("/bidi/power", mqttVal("sungrow/signed_battery_power"))
+        client.publish("/battery/power", 0)
+    else:
+        client.publish("/bidi/power", 0)
+        client.publish("/battery/power", mqttVal("sungrow/signed_battery_power"))
 
 def on_message(client, userdata, msg):
     global mqttData
@@ -86,11 +72,7 @@ def on_message(client, userdata, msg):
             client.publish("/meter/power", ptotal)
             client.publish("/meter/energy", data['etotal'])
             ptotal = (mqttVal('ptotal') + ptotal) / 2
-            mqttData['ptotal'] = ptotal
-            setControllerLimits()
-            (batSpnt, v2gSpnt) = calculateNetzero(ptotal)
-            (batSpnt, v2gSpnt) = calculateSpotmarket(batSpnt, v2gSpnt)
-            sendChargeDischargeCommand(batSpnt, v2gSpnt)
+            regulate(ptotal)
         except ValueError:
             return
     elif msg.topic == 'pyPlc/soc':
@@ -139,12 +121,11 @@ client.subscribe("/grid/chargepower")
 client.subscribe("/spotmarket/pricenow")
 client.subscribe("sungrow/system_state")
 client.subscribe("sungrow/total_active_power")
+client.subscribe("sungrow/signed_battery_power")
 
 client.publish("/charger/setpoint/voltage", config['netzero']['chargevoltage'])
 
 mqttData = {}
-controller = PiController(config['netzero']['powerkp'], config['netzero']['powerki'])
-batController = PiController(config['netzero']['powerkp'], config['netzero']['powerki'])
 v2gController = PiController(config['netzero']['powerkp'], config['netzero']['powerki'], -config['netzero']['evpower'], config['netzero']['evpower'])
 
 client.loop_forever()

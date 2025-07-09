@@ -7,16 +7,29 @@ import paho.mqtt.client as mqtt
 import time, json, can
 
 def on_message(client, userdata, msg):
-    global batSoc, batVoltage, maxCurrent, socLimit
+    global batSoc, batVoltage, maxCurrent, socLimit, pyplcState
     
-    if msg.topic == "pyPlc/soc":
-        batSoc = float(msg.payload)
-    elif msg.topic == "pyPlc/soclimit":
-        socLimit = float(msg.payload)
-    elif msg.topic == "pyPlc/target_current":
-        maxCurrent = float(msg.payload)
-    elif msg.topic == "pyPlc/charger_voltage":
-        batVoltage = float(msg.payload)
+    if msg.topic == "pyPlc/fsm_state":
+        pyplcState = msg.payload.decode("utf-8")
+    
+    if pyplcState == "CurrentDemand":
+        if msg.topic == "pyPlc/soc":
+            batSoc = float(msg.payload)
+        elif msg.topic == "pyPlc/soclimit":
+            socLimit = float(msg.payload)
+        elif msg.topic == "pyPlc/target_current":
+            maxCurrent = float(msg.payload)
+        elif msg.topic == "pyPlc/charger_voltage":
+            batVoltage = float(msg.payload)
+    else:
+        if msg.topic == "/bms/info/soc":
+            batSoc = float(msg.payload)
+        elif msg.topic == "/bms/info/packvoltage":
+            batVoltage = float(msg.payload)
+        elif msg.topic == "/bms/info/chargepower":
+            maxCurrent = min(20, 1.5 * float(msg.payload) / batVoltage)
+        elif msg.topic == "/bms/info/current":
+            batCurrent = abs(float(msg.payload))
 
 with open("config.json") as configFile:
     config = json.load(configFile)
@@ -28,12 +41,18 @@ client.subscribe("pyPlc/soc")
 client.subscribe("pyPlc/soclimit")
 client.subscribe("pyPlc/target_current")
 client.subscribe("pyPlc/charger_voltage")
-batVoltage = 360
+client.subscribe("pyPlc/fsm_state")
+client.subscribe("/bms/info/soc")
+client.subscribe("/bms/info/packvoltage")
+client.subscribe("/bms/info/chargepower")
+client.subscribe("/bms/info/current")
+batVoltage = 320
 batSoc = 50
 socLimit = 85
 batCurrent = 1
 maxCurrent = 15
 runtime = 0
+pyplcState = "Off"
 
 filters = [
 {"can_id": 0x151, "can_mask": 0xFFF, "extended": False},
@@ -65,10 +84,10 @@ def send2SMessages(bus):
     
     limitedChargeCurrent = int(min(maxCurrent, 20) * 10)
     
-    if batSoc >= socLimit:
-        limitedChargeCurrent = 0
+    #if batSoc >= socLimit:
+    #    limitedChargeCurrent = 0
 
-    msg = can.Message(arbitration_id=0x110, data=[0x0F, 0xA0, 0x0B, 0xB8, 0x00, 0xC8, 0x00, limitedChargeCurrent], is_extended_id=False)
+    msg = can.Message(arbitration_id=0x110, data=[0x10, 0x04, 0x0A, 0x80, 0x00, 0xC8, 0x00, limitedChargeCurrent], is_extended_id=False)
     bus.send(msg)
     
 def send10SMessages(bus):
@@ -105,13 +124,13 @@ while True:
                 print("Received indentification request")
                 sendInitialData(bus);
         
-    if (time.time() - lastReceived) < 15: #only send if inverter is alive
-        send2SMessages(bus)
-        
-        if (runtime % 10) == 0:
-            send10SMessages(bus)
-        if (runtime % 60) == 0:
-            send60SMessages(bus)
+    #if (time.time() - lastReceived) < 15: #only send if inverter is alive
+    send2SMessages(bus)
+    
+    if (runtime % 10) == 0:
+        send10SMessages(bus)
+    if (runtime % 60) == 0:
+        send60SMessages(bus)
 
     time.sleep(2)
     runtime = runtime + 2
