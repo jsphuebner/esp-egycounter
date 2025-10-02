@@ -1,48 +1,19 @@
+#!/usr/bin/python3
+
 import Adafruit_BBIO.GPIO as GPIO
 import Adafruit_BBIO.PWM as PWM
 import paho.mqtt.client as mqtt
 import time, json
 
 def on_message(client, userdata, msg):
-    global socLimit, ccsState
+    global ccsState, invState, controlState, switchState
     
-    if msg.topic == "pyPlc/soclimit":
-        socLimit = float(msg.payload)
-    elif msg.topic == "pyPlc/fsm_state":
+    if msg.topic == "pyPlc/fsm_state":
         ccsState = msg.payload.decode("utf-8")
-
-GPIO.setup("P8_7", GPIO.IN)
-GPIO.setup("P8_8", GPIO.OUT)
-GPIO.setup("P9_23", GPIO.OUT)
-PWM.start("P8_13", 95, 1000)
-
-with open("config.json") as configFile:
-    config = json.load(configFile)
-
-mqttclient = mqtt.Client(client_id = "ccscontrol")
-mqttclient.on_message = on_message
-mqttclient.connect(config['broker']['address'], 1883, 60)
-mqttclient.subscribe("pyPlc/fsm_state")
-mqttclient.subscribe("pyPlc/soclimit")
-socLimit = 0
-mqttclient.loop_start()
-time.sleep(0.1)
-ccsState = "None"
-switchOffTime = 0
-lastSocLimit = socLimit
-switchState = False
-
-while True:
-    if ccsState == "CurrentDemand":
-        GPIO.output("P8_8", GPIO.HIGH)
-        switchState = GPIO.input("P8_7")
-
-        if switchOffTime == 1:
-            lastSocLimit = socLimit
-            mqttclient.publish("pyPlc/soclimit", 0)
-        if switchOffTime == 5:
-            mqttclient.publish("pyPlc/enabled", 0)
-    else:
+    elif msg.topic == "sungrow/system_state":
+        invState = msg.payload.decode("utf-8")
+        
+    if controlState == "RunStationary":
         level = GPIO.input("P8_8")
         #toggle LED, sampling switch state is only possible when LED is on
         if level:
@@ -53,19 +24,55 @@ while True:
             
         if switchState:
             mqttclient.publish("pyPlc/enabled", 1)
-            if lastSocLimit != socLimit:
-                mqttclient.publish("pyPlc/soclimit", lastSocLimit)
         else:
             mqttclient.publish("pyPlc/enabled", 0)
 
-    if ccsState in ["Waiting f AppHandShake", "Session established", "ContractAuthentication", "CableCheck", "PreCharging", "PowerDelivery"]:
-        GPIO.output("P9_23", GPIO.HIGH)
-    else:
-        GPIO.output("P9_23", GPIO.LOW)
-        
-    if switchState:
-        switchOffTime = 0
-    else:
-        switchOffTime = switchOffTime + 1
-    
-    time.sleep(1)
+        if ccsState == "CableCheck" or ccsState == "CurrentDemand":
+            controlState = "SwitchOffInverter"
+    elif controlState == "SwitchOffInverter":
+        client.publish("sungrow/start_stop/set", "Stop")
+        controlState = "SwitchToCCS"
+    elif controlState == "SwitchToCCS":
+        GPIO.output("P8_8", GPIO.HIGH) #Turn on solid LED
+        if invState == "Stop":
+            GPIO.output("P9_15", GPIO.HIGH) # change over to CCS
+            client.publish("sungrow/start_stop/set", "Start") #Start inverter
+            controlState = "RunCCS"
+    elif controlState == "RunCCS":
+        switchState = GPIO.input("P8_7")
+        if not switchState or ccsState != "CurrentDemand":
+            controlState = "StopCCS"
+    elif controlState == "StopCCS":
+        client.publish("sungrow/start_stop/set", "Stop")
+        mqttclient.publish("pyPlc/enabled", 0)
+        controlState = "SwitchToStationary"
+    elif controlState == "SwitchToStationary":
+        if invState == "Stop":
+            GPIO.output("P9_15", GPIO.LOW) # change over to stationary battery
+            client.publish("sungrow/start_stop/set", "Start") #Start inverter
+            controlState = "RunStationary"
+            
+    client.publish("pyPlc/controlstate", controlState)
+
+GPIO.setup("P8_7", GPIO.IN) #Enable switch
+GPIO.setup("P8_8", GPIO.OUT) #LED of enable switch
+GPIO.setup("P9_23", GPIO.OUT) #HV precharge supply
+GPIO.setup("P9_15", GPIO.OUT) #change over relay between V2G and stationary battery
+PWM.start("P8_13", 95, 1000)
+
+with open("config.json") as configFile:
+    config = json.load(configFile)
+
+mqttclient = mqtt.Client(client_id = "ccscontrol")
+mqttclient.on_message = on_message
+mqttclient.connect(config['broker']['address'], 1883, 60)
+mqttclient.subscribe("pyPlc/fsm_state")
+mqttclient.subscribe("sungrow/system_state")
+time.sleep(0.1)
+ccsState = "None"
+switchOffTime = 0
+switchState = True
+invState = "Start"
+controlState = "RunStationary"
+mqttclient.loop_forever()
+

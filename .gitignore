@@ -34,3 +34,5 @@ la
 *.exe
 *.out
 *.app
+
+beagle*

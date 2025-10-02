@@ -6,7 +6,7 @@ import paho.mqtt.client as mqtt
 from picontroller import PiController
 
 def calculateNetzero(ptotal):
-    global config, v2gController, batController
+    global config, v2gController
     
     v2gSpnt = v2gController.run(ptotal, 0)
     return v2gSpnt
@@ -31,7 +31,7 @@ def setControllerLimits():
 def calculateSpotmarket(batSpnt):
     global config, batController
 
-    price = mqttVal("/spotmarket/pricenow")
+    price = mqttVal("/spotmarket/pricenow")        
     
     #We are connected to the EV battery and it is not yet full
     if mqttVal('pyPlc/fsm_state') == "CurrentDemand": 
@@ -43,9 +43,13 @@ def calculateSpotmarket(batSpnt):
             v2gController.resetIntegrator()
     else:
         if price < mqttVal('/grid/chargethresh') and mqttVal('/grid/chargepower') > -batSpnt:
-            batSpnt = -mqttVal('/grid/chargepower')
+            batSpnt = -min(mqttVal('/grid/chargepower'), mqttVal('/bms/info/chargepower'))
             v2gController.resetIntegrator()
-            
+    
+    if batSpnt > 0 and price < mqttVal('/grid/dischargethresh'):
+        batSpnt = 0
+        v2gController.resetIntegrator()
+
     return batSpnt
 
 def regulate(ptotal):
