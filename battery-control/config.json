@@ -40,7 +40,8 @@
 		"evpower": 5000
 	},
 	"spotmarket": {
-		"priceuri": "https://api.awattar.de/v1/marketdata",
-		"tstype": "unix"
+		"priceuri": "https://api.tibber.com/v1-beta/gql",
+		"apitype": "tibber",
+		"apikey": "your tibber key"
 	}
 }
