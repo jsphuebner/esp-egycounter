@@ -6,6 +6,14 @@
 		"topic": "/ebz/readings",
 		"rawtopic": "/ebz/raw"
 	},
+	"ccsctrl": {
+	    "enablepin": "P9_30",
+	    "ledpin": "P9_28",
+	    "prechargepin": "P9_16",
+	    "changeoverpin": "P9_14",
+	    "pwmpin": "P9_42",
+	    "pwmbase": "/sys/class/pwm/pwm-0:0/"
+	},
 	"tibber": {
 		"broker": "a2zhmn2392zl2a.iot.eu-west-1.amazonaws.com",
 		"uid": "209ad2f026855a9d895580f78d3519d6",
