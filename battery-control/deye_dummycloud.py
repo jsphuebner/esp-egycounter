@@ -18,6 +18,7 @@ except ImportError:  # optional dependency
 HEADER_LEN = 11
 FOOTER_LEN = 2
 PACKET_MIN_LEN = HEADER_LEN + FOOTER_LEN
+MAX_BUFFER_SIZE = 256 * 1024
 
 REQUEST_TYPE_HANDSHAKE = 0x41
 REQUEST_TYPE_DATA = 0x42
@@ -252,6 +253,9 @@ class DeyeConnectionHandler(socketserver.BaseRequestHandler):
             if not data:
                 break
             buffer.extend(data)
+            if len(buffer) > MAX_BUFFER_SIZE:
+                logging.warning("Closing connection %s due to buffer overflow", remote)
+                return
 
             while True:
                 if len(buffer) < PACKET_MIN_LEN:
@@ -308,6 +312,7 @@ def main():
         format="[%(asctime)s] [%(levelname)s] %(message)s",
     )
 
+    host = os.getenv("BIND_HOST", "127.0.0.1")
     port = int(os.getenv("PORT", "10000"))
     mqtt_publisher = MqttPublisher(
         broker_url=os.getenv("MQTT_BROKER_URL"),
@@ -315,8 +320,8 @@ def main():
         password=os.getenv("MQTT_PASSWORD"),
     )
 
-    with DeyeDummyCloudTCPServer(("0.0.0.0", port), DeyeConnectionHandler, mqtt_publisher) as server:
-        logging.info("Starting deye dummycloud on 0.0.0.0:%s", port)
+    with DeyeDummyCloudTCPServer((host, port), DeyeConnectionHandler, mqtt_publisher) as server:
+        logging.info("Starting deye dummycloud on %s:%s", host, port)
         server.serve_forever()
 
 

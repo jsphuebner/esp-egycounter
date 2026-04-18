@@ -88,6 +88,7 @@ Start:
 Optionale Umgebungsvariablen:
 
 - `PORT` (Default `10000`)
+- `BIND_HOST` (Default `127.0.0.1`, z.B. `0.0.0.0` für Zugriff aus dem LAN)
 - `LOGLEVEL` (Default `INFO`)
 - `MQTT_BROKER_URL` (optional, z.B. `mqtt://broker.local`)
 - `MQTT_USERNAME` / `MQTT_PASSWORD` (optional)
