@@ -204,7 +204,10 @@ class MqttPublisher:
         else:
             self._client = mqtt.Client(client_id=client_id)
         if username:
-            self._client.username_pw_set(username, password or None)
+            self._client.username_pw_set(
+                username,
+                password if password is not None else None,
+            )
         self._client.connect(*self._parse_broker_url(broker_url))
         self._client.loop_start()
         logging.info("Connected to MQTT broker %s", broker_url)
@@ -320,17 +323,28 @@ def main():
         "ERROR": logging.ERROR,
         "CRITICAL": logging.CRITICAL,
     }
-    loglevel_name = os.getenv("LOGLEVEL", "INFO").upper()
-    loglevel = valid_levels.get(loglevel_name, logging.INFO)
+    configured_loglevel = os.getenv("LOGLEVEL", "INFO").upper()
+    warning_message = None
+    if configured_loglevel in valid_levels:
+        effective_loglevel_name = configured_loglevel
+    else:
+        effective_loglevel_name = "INFO"
+        warning_message = f"Invalid LOGLEVEL '{configured_loglevel}', falling back to INFO"
+
+    loglevel = valid_levels[effective_loglevel_name]
     logging.basicConfig(
         level=loglevel,
         format="[%(asctime)s] [%(levelname)s] %(message)s",
     )
-    if loglevel_name not in valid_levels:
-        logging.warning("Invalid LOGLEVEL '%s', falling back to INFO", loglevel_name)
+    if warning_message:
+        logging.warning(warning_message)
 
     host = os.getenv("BIND_HOST", "127.0.0.1")
-    port = int(os.getenv("PORT", "10000"))
+    port_value = os.getenv("PORT", "10000")
+    try:
+        port = int(port_value)
+    except ValueError as exc:
+        raise ValueError(f"Invalid PORT value '{port_value}'. Expected an integer.") from exc
     mqtt_publisher = MqttPublisher(
         broker_url=os.getenv("MQTT_BROKER_URL"),
         username=os.getenv("MQTT_USERNAME"),
