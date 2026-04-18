@@ -110,6 +110,7 @@ def build_time_response(header: PacketHeader, payload: bytes) -> bytes:
     response[0] = 0xA5
     response[1:3] = (10).to_bytes(2, "little")
     response[3] = header.unknown1
+    # Deye protocol: response type is request type minus 0x30 (e.g. 0x41 -> 0x11).
     response[4] = (header.msg_type - 0x30) & 0xFF
     response[5] = (header.msg_id_response + 1) & 0xFF
     response[6] = header.msg_id_request
@@ -169,8 +170,8 @@ def parse_microinverter_payload(payload: bytes) -> Optional[Dict[str, Any]]:
         },
         "inverter_meta": {
             "rated_power_w": _read_u16_be(payload, 129) / 10,
-            "mppt_count": payload[131] if len(payload) > 131 else 0,
-            "phase_count": payload[132] if len(payload) > 132 else 0,
+            "mppt_count": payload[131] if len(payload) >= 132 else 0,
+            "phase_count": payload[132] if len(payload) >= 133 else 0,
             "protocol_ver": payload[101:109].decode("ascii", errors="ignore"),
             "dc_master_fw_ver": payload[109:117].decode("ascii", errors="ignore"),
             "ac_fw_ver": payload[117:125].decode("ascii", errors="ignore"),
@@ -254,6 +255,10 @@ class DeyeDummyCloudTCPServer(socketserver.ThreadingTCPServer):
 
 
 class DeyeConnectionHandler(socketserver.BaseRequestHandler):
+    def setup(self):
+        super().setup()
+        self.mqtt_publisher = getattr(self.server, "mqtt_publisher", None)
+
     def handle(self):
         remote = f"{self.client_address[0]}:{self.client_address[1]}"
         logging.info("New connection from %s", remote)
@@ -309,7 +314,8 @@ class DeyeConnectionHandler(socketserver.BaseRequestHandler):
                         header.logger_serial,
                         parsed_data.get("grid", {}).get("active_power_w"),
                     )
-                    self.server.mqtt_publisher.publish_packet(header.logger_serial, parsed_data)
+                    if self.mqtt_publisher is not None:
+                        self.mqtt_publisher.publish_packet(header.logger_serial, parsed_data)
             elif msg_type in (REQUEST_TYPE_WIFI, REQUEST_TYPE_HEARTBEAT):
                 logging.debug("Packet type 0x%x from logger=%s", msg_type, header.logger_serial)
             else:
