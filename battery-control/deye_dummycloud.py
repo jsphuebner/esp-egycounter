@@ -195,7 +195,14 @@ class MqttPublisher:
             logging.warning("MQTT broker configured but paho-mqtt is not installed")
             return
 
-        self._client = mqtt.Client(client_id=f"deye_dummycloud_{int(time.time())}")
+        client_id = f"deye_dummycloud_{int(time.time())}"
+        if hasattr(mqtt, "CallbackAPIVersion"):
+            self._client = mqtt.Client(
+                client_id=client_id,
+                callback_api_version=mqtt.CallbackAPIVersion.VERSION1,
+            )
+        else:
+            self._client = mqtt.Client(client_id=client_id)
         if username:
             self._client.username_pw_set(username, password or None)
         self._client.connect(*self._parse_broker_url(broker_url))
@@ -306,11 +313,21 @@ class DeyeConnectionHandler(socketserver.BaseRequestHandler):
 
 
 def main():
-    loglevel = os.getenv("LOGLEVEL", "INFO").upper()
+    valid_levels = {
+        "DEBUG": logging.DEBUG,
+        "INFO": logging.INFO,
+        "WARNING": logging.WARNING,
+        "ERROR": logging.ERROR,
+        "CRITICAL": logging.CRITICAL,
+    }
+    loglevel_name = os.getenv("LOGLEVEL", "INFO").upper()
+    loglevel = valid_levels.get(loglevel_name, logging.INFO)
     logging.basicConfig(
-        level=getattr(logging, loglevel, logging.INFO),
+        level=loglevel,
         format="[%(asctime)s] [%(levelname)s] %(message)s",
     )
+    if loglevel_name not in valid_levels:
+        logging.warning("Invalid LOGLEVEL '%s', falling back to INFO", loglevel_name)
 
     host = os.getenv("BIND_HOST", "127.0.0.1")
     port = int(os.getenv("PORT", "10000"))
