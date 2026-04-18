@@ -19,6 +19,7 @@ HEADER_LEN = 11
 FOOTER_LEN = 2
 PACKET_MIN_LEN = HEADER_LEN + FOOTER_LEN
 MAX_BUFFER_SIZE = 256 * 1024
+RECV_BUFFER_SIZE = 4096
 
 REQUEST_TYPE_HANDSHAKE = 0x41
 REQUEST_TYPE_DATA = 0x42
@@ -206,7 +207,7 @@ class MqttPublisher:
         if username:
             self._client.username_pw_set(
                 username,
-                password if password is not None else None,
+                password,
             )
         self._client.connect(*self._parse_broker_url(broker_url))
         self._client.loop_start()
@@ -259,7 +260,7 @@ class DeyeConnectionHandler(socketserver.BaseRequestHandler):
 
         buffer = bytearray()
         while True:
-            data = self.request.recv(4096)
+            data = self.request.recv(RECV_BUFFER_SIZE)
             if not data:
                 break
             buffer.extend(data)
@@ -272,7 +273,11 @@ class DeyeConnectionHandler(socketserver.BaseRequestHandler):
                     break
 
                 if buffer[0] != 0xA5:
-                    del buffer[0]
+                    next_magic = buffer.find(0xA5, 1)
+                    if next_magic == -1:
+                        buffer.clear()
+                        break
+                    del buffer[:next_magic]
                     continue
 
                 payload_len = int.from_bytes(buffer[1:3], "little")
