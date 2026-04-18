@@ -77,6 +77,23 @@ The script sends the counter data from above and merges battery power into the J
 
 ![](images/web-interface.png)
 
+## Deye Dummy Cloud (Python)
+Für Deye Mikro-Wechselrichter gibt es jetzt ein Python-Skript als lokalen Cloud-Ersatz unter `battery-control/deye_dummycloud.py`.
+Es akzeptiert die Logger-Verbindung standardmäßig auf TCP-Port `10000`, beantwortet Heartbeat/Handshake/Data-Pakete und dekodiert Mikroinverter-Daten.
+
+Start:
+
+    python3 battery-control/deye_dummycloud.py
+
+Optionale Umgebungsvariablen:
+
+- `PORT` (Default `10000`)
+- `LOGLEVEL` (Default `INFO`)
+- `MQTT_BROKER_URL` (optional, z.B. `mqtt://broker.local`)
+- `MQTT_USERNAME` / `MQTT_PASSWORD` (optional)
+
+Bei gesetztem MQTT-Broker werden dekodierte Daten unter `deye-dummycloud/<loggerSerial>/...` publiziert.
+
 # Disclaimer
 As always things I present are somewhat dangerous and you repeat them at your own risk. In terms of safety the system has some shortcomings
 - It is located in the living area in a wooden desk
