@@ -59,6 +59,11 @@ def safe_eval_expression(expr, values):
     return float(eval_node(node))
 
 
+def extract_expression_aliases(expr):
+    node = ast.parse(expr, mode='eval')
+    return {n.id for n in ast.walk(node) if isinstance(n, ast.Name)}
+
+
 def on_message(client, userdata, msg):
     alias = userdata['topic_to_alias'].get(msg.topic)
     if alias is None:
@@ -69,6 +74,9 @@ def on_message(client, userdata, msg):
         return
 
     userdata['values'][alias] = number
+    if not userdata['required_aliases'].issubset(userdata['values'].keys()):
+        return
+
     try:
         result = safe_eval_expression(userdata['expression'], userdata['values'])
         client.publish(userdata['result_topic'], str(result))
@@ -118,10 +126,12 @@ for item in aliases:
 userdata = {
     'topic_to_alias': topic_to_alias,
     'expression': expression,
+    'required_aliases': extract_expression_aliases(expression),
     'result_topic': result_topic,
     'values': {}
 }
 
+# Compatibility for paho-mqtt versions before/after 2.0 callback API change.
 if hasattr(mqtt, "CallbackAPIVersion"):
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, client_id=client_id, userdata=userdata)
 else:
