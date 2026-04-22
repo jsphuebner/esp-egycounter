@@ -10,3 +10,5 @@ Configure it in config.json under "mqtt_math":
 - expression: expression string using aliases and numeric constants
 - result_topic: topic where the computed result is published
 - client_id: optional MQTT client id (defaults to "mqtt_math")
+
+Broker connection uses "broker.address" and optionally "broker.port" and "broker.keepalive" from config.json.

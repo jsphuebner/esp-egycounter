@@ -35,7 +35,7 @@ def safe_eval_expression(expr, values):
                 return left * right
             if isinstance(n.op, ast.Div):
                 if right == 0:
-                    raise ValueError("Division by zero")
+                    raise ValueError("Division by zero in expression: " + expr)
                 return left / right
             raise ValueError("Unsupported operator")
         if isinstance(n, ast.UnaryOp):
@@ -69,7 +69,8 @@ def on_message(client, userdata, msg):
     try:
         result = safe_eval_expression(userdata['expression'], userdata['values'])
         client.publish(userdata['result_topic'], str(result))
-    except (KeyError, ValueError, SyntaxError):
+    except (KeyError, ValueError, SyntaxError) as ex:
+        print("mqtt_math: expression not published:", ex)
         return
 
 config_path = os.path.join(os.path.dirname(__file__), "config.json")
@@ -83,7 +84,7 @@ result_topic = module_config.get('result_topic', '')
 client_id = module_config.get('client_id', 'mqtt_math')
 
 if not aliases or not expression or not result_topic:
-    raise ValueError("mqtt_math config must define aliases, expression and result_topic")
+    raise ValueError("mqtt_math config must define aliases, expression, and result_topic")
 
 topic_to_alias = {}
 for item in aliases:
@@ -102,7 +103,9 @@ userdata = {
 
 client = mqtt.Client(client_id=client_id, userdata=userdata)
 client.on_message = on_message
-client.connect(config['broker']['address'], 1883, 60)
+broker_port = config['broker'].get('port', 1883)
+broker_keepalive = config['broker'].get('keepalive', 60)
+client.connect(config['broker']['address'], broker_port, broker_keepalive)
 
 for topic in topic_to_alias:
     client.subscribe(topic)

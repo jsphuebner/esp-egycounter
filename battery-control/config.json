@@ -1,6 +1,8 @@
 {
 	"broker": {
-	    "address": "192.168.188.23"
+	    "address": "192.168.188.23",
+	    "port": 1883,
+	    "keepalive": 60
 	},
 	"meter": {
 		"topic": "/ebz/readings",
