@@ -12,7 +12,7 @@ def parse_number(payload):
     except UnicodeDecodeError:
         return None
 
-    if bool(re.match(r'^-?\d+[\.,]?\d*$', value)):
+    if re.match(r'^-?\d+[\.,]?\d*$', value):
         return float(value.replace(",", "."))
     return None
 
@@ -70,8 +70,8 @@ def on_message(client, userdata, msg):
         return
 
 
-with open("config.json") as configFile:
-    config = json.load(configFile)
+with open("config.json") as config_file:
+    config = json.load(config_file)
 
 module_config = config.get('mqtt_math', {})
 aliases = module_config.get('aliases', [])
@@ -96,7 +96,7 @@ userdata = {
     'values': {}
 }
 
-client = mqtt.Client(client_id="mqttMath", userdata=userdata)
+client = mqtt.Client(client_id="mqtt_math", userdata=userdata)
 client.on_message = on_message
 client.connect(config['broker']['address'], 1883, 60)
 
