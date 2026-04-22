@@ -90,6 +90,7 @@ aliases = module_config.get('aliases', [])
 expression = module_config.get('expression', '')
 result_topic = module_config.get('result_topic', '')
 client_id = module_config.get('client_id', 'mqtt_math')
+broker_config = config.get('broker', {})
 
 missing_fields = []
 if not aliases:
@@ -100,6 +101,10 @@ if not result_topic:
     missing_fields.append('result_topic')
 if missing_fields:
     raise ValueError("mqtt_math config missing required field(s): " + ", ".join(missing_fields))
+
+broker_address = broker_config.get('address', '')
+if not broker_address:
+    raise ValueError("config missing required field: broker.address")
 
 topic_to_alias = {}
 for item in aliases:
@@ -116,16 +121,19 @@ userdata = {
     'values': {}
 }
 
-client = mqtt.Client(client_id=client_id, userdata=userdata)
-client.on_message = on_message
-broker_port = config['broker'].get('port', 1883)
-broker_keepalive = config['broker'].get('keepalive', 60)
 try:
-    client.connect(config['broker']['address'], broker_port, broker_keepalive)
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, client_id=client_id, userdata=userdata)
+except AttributeError:
+    client = mqtt.Client(client_id=client_id, userdata=userdata)
+client.on_message = on_message
+broker_port = broker_config.get('port', 1883)
+broker_keepalive = broker_config.get('keepalive', 60)
+try:
+    client.connect(broker_address, broker_port, broker_keepalive)
 except Exception as ex:
     raise SystemExit(
         "mqtt_math: MQTT connect failed for " +
-        config['broker']['address'] + ":" + str(broker_port) + " - " + str(ex)
+        broker_address + ":" + str(broker_port) + " - " + str(ex)
     ) from ex
 
 for topic in topic_to_alias:
