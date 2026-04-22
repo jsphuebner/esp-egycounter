@@ -36,3 +36,5 @@ la
 *.app
 
 beagle*
+__pycache__/
+*.pyc
