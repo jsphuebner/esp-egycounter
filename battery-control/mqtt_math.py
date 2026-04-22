@@ -7,6 +7,8 @@ import os
 import re
 import paho.mqtt.client as mqtt
 
+logger = logging.getLogger(__name__)
+
 
 def parse_number(payload):
     try:
@@ -36,7 +38,7 @@ def safe_eval_expression(expr, values):
                 return left * right
             if isinstance(n.op, ast.Div):
                 if right == 0:
-                    raise ValueError("Division by zero in expression: " + expr)
+                    raise ValueError("Division by zero detected")
                 return left / right
             raise ValueError("Unsupported operator")
         if isinstance(n, ast.UnaryOp):
@@ -71,11 +73,10 @@ def on_message(client, userdata, msg):
         result = safe_eval_expression(userdata['expression'], userdata['values'])
         client.publish(userdata['result_topic'], str(result))
     except (KeyError, ValueError, SyntaxError) as ex:
-        logging.warning("mqtt_math: expression not published: %s", ex)
+        logger.warning("mqtt_math: expression not published: %s", ex)
         return
 
 config_path = os.path.join(os.path.dirname(__file__), "config.json")
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
 try:
     with open(config_path) as config_file:
@@ -121,9 +122,9 @@ userdata = {
     'values': {}
 }
 
-try:
+if hasattr(mqtt, "CallbackAPIVersion"):
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, client_id=client_id, userdata=userdata)
-except AttributeError:
+else:
     client = mqtt.Client(client_id=client_id, userdata=userdata)
 client.on_message = on_message
 broker_port = broker_config.get('port', 1883)
