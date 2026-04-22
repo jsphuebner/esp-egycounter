@@ -51,5 +51,19 @@
 		"priceuri": "https://api.tibber.com/v1-beta/gql",
 		"apitype": "tibber",
 		"apikey": "your tibber key"
+	},
+	"mqtt_math": {
+		"aliases": [
+			{
+				"topic": "/meter/power",
+				"alias": "meter"
+			},
+			{
+				"topic": "/battery/power",
+				"alias": "battery"
+			}
+		],
+		"expression": "meter + battery",
+		"result_topic": "/math/result"
 	}
 }

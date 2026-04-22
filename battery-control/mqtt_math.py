@@ -1,0 +1,106 @@
+#!/usr/bin/python3
+
+import ast
+import json
+import re
+import paho.mqtt.client as mqtt
+
+
+def parse_number(payload):
+    try:
+        value = payload.decode("utf-8").strip()
+    except UnicodeDecodeError:
+        return None
+
+    if bool(re.match(r'^-?\d+[\.,]?\d*$', value)):
+        return float(value.replace(",", "."))
+    return None
+
+
+def safe_eval_expression(expr, values):
+    node = ast.parse(expr, mode='eval')
+
+    def eval_node(n):
+        if isinstance(n, ast.Expression):
+            return eval_node(n.body)
+        if isinstance(n, ast.BinOp):
+            left = eval_node(n.left)
+            right = eval_node(n.right)
+            if isinstance(n.op, ast.Add):
+                return left + right
+            if isinstance(n.op, ast.Sub):
+                return left - right
+            if isinstance(n.op, ast.Mult):
+                return left * right
+            if isinstance(n.op, ast.Div):
+                return left / right
+            raise ValueError("Unsupported operator")
+        if isinstance(n, ast.UnaryOp):
+            val = eval_node(n.operand)
+            if isinstance(n.op, ast.UAdd):
+                return +val
+            if isinstance(n.op, ast.USub):
+                return -val
+            raise ValueError("Unsupported unary operator")
+        if isinstance(n, ast.Name):
+            if n.id not in values:
+                raise KeyError(n.id)
+            return values[n.id]
+        if isinstance(n, ast.Constant) and isinstance(n.value, (int, float)):
+            return float(n.value)
+        raise ValueError("Unsupported expression element")
+
+    return float(eval_node(node))
+
+
+def on_message(client, userdata, msg):
+    alias = userdata['topic_to_alias'].get(msg.topic)
+    if alias is None:
+        return
+
+    number = parse_number(msg.payload)
+    if number is None:
+        return
+
+    userdata['values'][alias] = number
+    try:
+        result = safe_eval_expression(userdata['expression'], userdata['values'])
+        client.publish(userdata['result_topic'], result)
+    except (KeyError, ValueError, ZeroDivisionError, SyntaxError):
+        return
+
+
+with open("config.json") as configFile:
+    config = json.load(configFile)
+
+module_config = config.get('mqtt_math', {})
+aliases = module_config.get('aliases', [])
+expression = module_config.get('expression', '')
+result_topic = module_config.get('result_topic', '')
+
+if not aliases or not expression or not result_topic:
+    raise ValueError("mqtt_math config must define aliases, expression and result_topic")
+
+topic_to_alias = {}
+for item in aliases:
+    topic = item.get('topic')
+    alias = item.get('alias')
+    if not topic or not alias:
+        raise ValueError("Each mqtt_math alias entry needs topic and alias")
+    topic_to_alias[topic] = alias
+
+userdata = {
+    'topic_to_alias': topic_to_alias,
+    'expression': expression,
+    'result_topic': result_topic,
+    'values': {}
+}
+
+client = mqtt.Client(client_id="mqttMath", userdata=userdata)
+client.on_message = on_message
+client.connect(config['broker']['address'], 1883, 60)
+
+for topic in topic_to_alias:
+    client.subscribe(topic)
+
+client.loop_forever()
