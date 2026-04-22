@@ -9,3 +9,4 @@ Configure it in config.json under "mqtt_math":
 - aliases: list of { "topic": "...", "alias": "..." }
 - expression: expression string using aliases and numeric constants
 - result_topic: topic where the computed result is published
+- client_id: optional MQTT client id (defaults to "mqtt_math")

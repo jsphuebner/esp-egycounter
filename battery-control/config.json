@@ -64,6 +64,7 @@
 			}
 		],
 		"expression": "meter + battery",
-		"result_topic": "/math/result"
+		"result_topic": "/math/result",
+		"client_id": "mqtt_math"
 	}
 }

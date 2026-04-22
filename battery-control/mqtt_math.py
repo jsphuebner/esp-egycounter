@@ -2,6 +2,7 @@
 
 import ast
 import json
+import os
 import re
 import paho.mqtt.client as mqtt
 
@@ -33,6 +34,8 @@ def safe_eval_expression(expr, values):
             if isinstance(n.op, ast.Mult):
                 return left * right
             if isinstance(n.op, ast.Div):
+                if right == 0:
+                    raise ValueError("Division by zero")
                 return left / right
             raise ValueError("Unsupported operator")
         if isinstance(n, ast.UnaryOp):
@@ -65,18 +68,19 @@ def on_message(client, userdata, msg):
     userdata['values'][alias] = number
     try:
         result = safe_eval_expression(userdata['expression'], userdata['values'])
-        client.publish(userdata['result_topic'], result)
-    except (KeyError, ValueError, ZeroDivisionError, SyntaxError):
+        client.publish(userdata['result_topic'], str(result))
+    except (KeyError, ValueError, SyntaxError):
         return
 
-
-with open("config.json") as config_file:
+config_path = os.path.join(os.path.dirname(__file__), "config.json")
+with open(config_path) as config_file:
     config = json.load(config_file)
 
 module_config = config.get('mqtt_math', {})
 aliases = module_config.get('aliases', [])
 expression = module_config.get('expression', '')
 result_topic = module_config.get('result_topic', '')
+client_id = module_config.get('client_id', 'mqtt_math')
 
 if not aliases or not expression or not result_topic:
     raise ValueError("mqtt_math config must define aliases, expression and result_topic")
@@ -96,7 +100,7 @@ userdata = {
     'values': {}
 }
 
-client = mqtt.Client(client_id="mqtt_math", userdata=userdata)
+client = mqtt.Client(client_id=client_id, userdata=userdata)
 client.on_message = on_message
 client.connect(config['broker']['address'], 1883, 60)
 
