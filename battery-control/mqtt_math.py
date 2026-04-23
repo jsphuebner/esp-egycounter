@@ -74,15 +74,20 @@ def on_message(client, userdata, msg):
         return
 
     userdata['values'][alias] = number
-    if not userdata['required_aliases'].issubset(userdata['values'].keys()):
-        return
+    for calculation in userdata['calculations']:
+        if not calculation['required_aliases'].issubset(userdata['values'].keys()):
+            continue
 
-    try:
-        result = safe_eval_expression(userdata['expression'], userdata['values'])
-        client.publish(userdata['result_topic'], str(result))
-    except (KeyError, ValueError, SyntaxError) as ex:
-        logger.warning("mqtt_math: expression not published: %s", ex)
-        return
+        try:
+            result = safe_eval_expression(calculation['expression'], userdata['values'])
+            client.publish(calculation['result_topic'], str(result))
+        except (KeyError, ValueError, SyntaxError) as ex:
+            logger.warning(
+                "mqtt_math: expression '%s' not published: %s",
+                calculation['expression'],
+                ex
+            )
+            continue
 
 config_path = os.path.join(os.path.dirname(__file__), "config.json")
 
@@ -96,18 +101,21 @@ except json.JSONDecodeError as ex:
 
 module_config = config.get('mqtt_math', {})
 aliases = module_config.get('aliases', [])
-expression = module_config.get('expression', '')
-result_topic = module_config.get('result_topic', '')
+raw_calculations = module_config.get('calculations')
 client_id = module_config.get('client_id', 'mqtt_math')
 broker_config = config.get('broker', {})
 
 missing_fields = []
 if not aliases:
     missing_fields.append('aliases')
-if not expression:
-    missing_fields.append('expression')
-if not result_topic:
-    missing_fields.append('result_topic')
+
+if raw_calculations is None:
+    expression = module_config.get('expression', '')
+    result_topic = module_config.get('result_topic', '')
+    raw_calculations = [{'expression': expression, 'result_topic': result_topic}]
+
+if not raw_calculations:
+    missing_fields.append('calculations')
 if missing_fields:
     raise ValueError("mqtt_math config missing required field(s): " + ", ".join(missing_fields))
 
@@ -123,11 +131,25 @@ for item in aliases:
         raise ValueError("Each mqtt_math alias entry needs topic and alias")
     topic_to_alias[topic] = alias
 
+calculations = []
+for item in raw_calculations:
+    if not isinstance(item, dict):
+        raise ValueError("Each mqtt_math calculation entry needs expression and result_topic")
+
+    expression = item.get('expression')
+    result_topic = item.get('result_topic')
+    if not expression or not result_topic:
+        raise ValueError("Each mqtt_math calculation entry needs expression and result_topic")
+
+    calculations.append({
+        'expression': expression,
+        'required_aliases': extract_expression_aliases(expression),
+        'result_topic': result_topic
+    })
+
 userdata = {
     'topic_to_alias': topic_to_alias,
-    'expression': expression,
-    'required_aliases': extract_expression_aliases(expression),
-    'result_topic': result_topic,
+    'calculations': calculations,
     'values': {}
 }
 
