@@ -65,8 +65,16 @@
 				"alias": "battery"
 			}
 		],
-		"expression": "meter + battery",
-		"result_topic": "/math/result",
+		"calculations": [
+			{
+				"expression": "meter + battery",
+				"result_topic": "/math/result"
+			},
+			{
+				"expression": "meter - battery",
+				"result_topic": "/math/net"
+			}
+		],
 		"client_id": "mqtt_math"
 	}
 }
