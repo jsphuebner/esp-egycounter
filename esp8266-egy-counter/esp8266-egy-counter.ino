@@ -70,39 +70,9 @@ File fsUploadFile;
 Ticker sta_tick;
 WiFiClient client;
 Adafruit_MQTT_Client mqtt(&client, "192.168.188.23", 1883);
-Adafruit_MQTT_Publish ebz = Adafruit_MQTT_Publish(&mqtt, "/ebz/readings2");
-Adafruit_MQTT_Publish ebzRaw = Adafruit_MQTT_Publish(&mqtt, "/ebz/raw2");
+Adafruit_MQTT_Publish ebz = Adafruit_MQTT_Publish(&mqtt, "/ebz/readings");
+Adafruit_MQTT_Publish ebzRaw = Adafruit_MQTT_Publish(&mqtt, "/ebz/raw");
 CounterValues values;
-
-void GetCounterValues(CounterValues& v, String& raw)
-{
-  Serial.readStringUntil('/');
-  yield();
-  raw = Serial.readStringUntil('!');
-  raw += '!';
-  StringReadStream stream(raw);
-  
-  stream.readStringUntil('\n');
-  stream.readStringUntil('\n');
-  stream.readStringUntil('(');
-  v.id = stream.readStringUntil(')');
-  stream.readStringUntil('\n');
-  stream.readStringUntil('\n');
-  stream.readStringUntil('(');
-  v.etotal = stream.parseFloat();
-  stream.readStringUntil('\n');
-  stream.readStringUntil('(');
-  v.ptotal = stream.parseFloat();
-  stream.readStringUntil('\n');
-  stream.readStringUntil('(');
-  v.pphase[0] = stream.parseFloat();
-  stream.readStringUntil('\n');
-  stream.readStringUntil('(');
-  v.pphase[1] = stream.parseFloat();
-  stream.readStringUntil('\n');
-  stream.readStringUntil('(');
-  v.pphase[2] = stream.parseFloat();
-}
 
 //format bytes
 String formatBytes(size_t bytes){
@@ -313,7 +283,7 @@ void staCheck(){
 }
 
 void setup(void){
-  Serial.begin(9600, SERIAL_7E1);
+  Serial.begin(9600, SERIAL_8N1);
   Serial.setTimeout(500);
   SPIFFS.begin();
 
@@ -385,14 +355,12 @@ void MQTT_connect() {
 void loop(void){
   ArduinoOTA.handle();
 
-  String output;
+  uint8_t data[512];
   yield();
-  GetCounterValues(values, output);
-  ebzRaw.publish(output.c_str());
-  ValuesJson(output);
+  uint16_t len = Serial.readBytes(data, 512);
+  ebzRaw.publish(data, len);
 
   server.handleClient();
 
   MQTT_connect();
-  ebz.publish(output.c_str());
 }
