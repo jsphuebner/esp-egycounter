@@ -87,7 +87,6 @@ def on_message(client, userdata, msg):
                 calculation['expression'],
                 ex
             )
-            continue
 
 config_path = os.path.join(os.path.dirname(__file__), "config.json")
 
@@ -112,10 +111,17 @@ if not aliases:
 if raw_calculations is None:
     expression = module_config.get('expression', '')
     result_topic = module_config.get('result_topic', '')
-    raw_calculations = [{'expression': expression, 'result_topic': result_topic}]
-
-if not raw_calculations:
-    missing_fields.append('calculations')
+    if not expression:
+        missing_fields.append('expression')
+    if not result_topic:
+        missing_fields.append('result_topic')
+    if expression and result_topic:
+        raw_calculations = [{'expression': expression, 'result_topic': result_topic}]
+else:
+    if not isinstance(raw_calculations, list):
+        raise ValueError("mqtt_math field calculations must be a list")
+    if not raw_calculations:
+        missing_fields.append('calculations')
 if missing_fields:
     raise ValueError("mqtt_math config missing required field(s): " + ", ".join(missing_fields))
 
