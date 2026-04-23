@@ -1,6 +1,8 @@
 {
 	"broker": {
-	    "address": "192.168.188.23"
+	    "address": "192.168.188.23",
+	    "port": 1883,
+	    "keepalive": 60
 	},
 	"meter": {
 		"topic": "/ebz/readings",
@@ -51,5 +53,20 @@
 		"priceuri": "https://api.tibber.com/v1-beta/gql",
 		"apitype": "tibber",
 		"apikey": "your tibber key"
+	},
+	"mqtt_math": {
+		"aliases": [
+			{
+				"topic": "/meter/power",
+				"alias": "meter"
+			},
+			{
+				"topic": "/battery/power",
+				"alias": "battery"
+			}
+		],
+		"expression": "meter + battery",
+		"result_topic": "/math/result",
+		"client_id": "mqtt_math"
 	}
 }
