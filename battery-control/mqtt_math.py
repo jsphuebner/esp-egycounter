@@ -93,19 +93,25 @@ def extract_expression_aliases(expr):
 
 
 def on_message(client, userdata, msg):
-    entry = userdata['topic_to_alias'].get(msg.topic)
-    if entry is None:
+    entries = userdata['topic_to_alias'].get(msg.topic)
+    if entries is None:
         return
 
-    alias, key = entry
-    if key:
-        number = parse_json_value(msg.payload, key)
-    else:
-        number = parse_number(msg.payload)
-    if number is None:
+    updated = False
+    for alias, key in entries:
+        if key:
+            number = parse_json_value(msg.payload, key)
+        else:
+            number = parse_number(msg.payload)
+        if number is None:
+            continue
+
+        userdata['values'][alias] = number
+        updated = True
+
+    if not updated:
         return
 
-    userdata['values'][alias] = number
     for calculation in userdata['calculations']:
         if not calculation['required_aliases'].issubset(userdata['values'].keys()):
             continue
@@ -168,7 +174,7 @@ for item in aliases:
     if not topic or not alias:
         raise ValueError("Each mqtt_math alias entry needs topic and alias")
     key = item.get('key', '')
-    topic_to_alias[topic] = (alias, key)
+    topic_to_alias.setdefault(topic, []).append((alias, key))
 
 calculations = []
 for item in raw_calculations:
