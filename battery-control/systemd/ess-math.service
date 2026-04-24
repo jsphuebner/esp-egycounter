@@ -1,0 +1,14 @@
+[Unit]
+Description=Configurable math module for MQTT
+After=multi-user.target
+
+[Service]
+Type=simple
+User=debian
+Restart=on-failure
+RestartSec=60
+WorkingDirectory=/home/debian
+ExecStart=/usr/bin/python3 mqtt_math.py
+
+[Install]
+WantedBy=multi-user.target
