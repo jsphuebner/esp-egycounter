@@ -7,7 +7,7 @@ The goal of this sub module is to make the Tibber Pulse IR hardware redundant. T
 
 Since this project deploys an IR pickup head on your meter anyway and it also deploys a network attached Linux computer we actually have all the hardware installed to give Tibber what it wants: high resolution records of your energy consumption.
 
-I have only tested the procedure with my eBZ meter which uses what I think is called the OBIS data format (text based)
+I have tested the procedure with my eBZ meter which uses what I think is called the OBIS data format (text based) and also with an itron meter that uses the SML format.
 
 # Extracting communication parameters
 Despite us making the Pulse hardware redundant you still have to buy the hardware from them in order to obtain access to their servers.
@@ -62,7 +62,7 @@ Now also look through the 3 json files in the tibber/ directory. You will find t
 
 # Testing
 First I recommend running Tibber with the actual Pulse for a while so that you at least see its icon in the Tibber app. Maybe you even get it to display some meter data. With that sorted we check if our tibber sender yield the same result. Just start it by typing "./tibbersender.py". Also make sure that you get valid raw data on your meter topic.
-Now you should see your power consumption in the tibber app. If you have negative consumption, e.g. because of solar, the Tibber app won't update.
+Now you should see your power consumption in the tibber app.
 
 With that sorted you can remove the batteries from your Pulse IR, put everything back in its box and store it for later use. Congratulations :)
 
