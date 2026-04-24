@@ -21,6 +21,34 @@ def parse_number(payload):
     return None
 
 
+def parse_json_value(payload, key):
+    try:
+        text = payload.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+
+    parts = key.split("/")
+    for part in parts:
+        if not isinstance(data, dict):
+            return None
+        data = data.get(part)
+        if data is None:
+            return None
+
+    if isinstance(data, (int, float)):
+        return float(data)
+    if isinstance(data, str):
+        stripped = data.strip()
+        if re.match(r'^-?\d+[\.,]?\d*$', stripped):
+            return float(stripped.replace(",", "."))
+    return None
+
+
 def safe_eval_expression(expr, values):
     node = ast.parse(expr, mode='eval')
 
@@ -65,11 +93,15 @@ def extract_expression_aliases(expr):
 
 
 def on_message(client, userdata, msg):
-    alias = userdata['topic_to_alias'].get(msg.topic)
-    if alias is None:
+    entry = userdata['topic_to_alias'].get(msg.topic)
+    if entry is None:
         return
 
-    number = parse_number(msg.payload)
+    alias, key = entry
+    if key:
+        number = parse_json_value(msg.payload, key)
+    else:
+        number = parse_number(msg.payload)
     if number is None:
         return
 
@@ -135,7 +167,8 @@ for item in aliases:
     alias = item.get('alias')
     if not topic or not alias:
         raise ValueError("Each mqtt_math alias entry needs topic and alias")
-    topic_to_alias[topic] = alias
+    key = item.get('key', '')
+    topic_to_alias[topic] = (alias, key)
 
 calculations = []
 for item in raw_calculations:
