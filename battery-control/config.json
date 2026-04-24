@@ -55,24 +55,31 @@
 		"apikey": "your tibber key"
 	},
 	"mqtt_math": {
-		"aliases": [
-			{
-				"topic": "/meter/power",
-				"alias": "meter"
-			},
-			{
-				"topic": "/battery/power",
-				"alias": "battery"
+		"aliases": [ {
+				"topic": "deye-dummycloud/3851343667/grid/active_power_w",
+				"alias": "P_deye"
+			},{
+				"topic": "sungrow/pv_power",
+				"alias": "P_sungrow"
+			},{
+				"topic": "/ebz/readings",
+				"alias": "meter_power",
+				"key": "ptotal"
+			},{
+				"topic": "/ebz/readings",
+				"alias": "meter_energy",
+				"key": "etotal"
 			}
 		],
-		"calculations": [
-			{
-				"expression": "meter + battery",
-				"result_topic": "/math/result"
-			},
-			{
-				"expression": "meter - battery",
-				"result_topic": "/math/net"
+		"calculations": [{
+				"expression": "meter_power",
+				"result_topic": "/meter/power"
+			},{
+				"expression": "meter_energy",
+				"result_topic": "/meter/energy"
+			},{
+				"expression": "P_sungrow + P_deye",
+				"result_topic": "/math/powersum"
 			}
 		],
 		"client_id": "mqtt_math"

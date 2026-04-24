@@ -29,7 +29,7 @@ def setControllerLimits():
         v2gController.setMinMax(0, 0)
 
 def calculateSpotmarket(batSpnt):
-    global config, batController
+    global config, v2gController
 
     price = mqttVal("/spotmarket/pricenow")        
     
@@ -37,7 +37,7 @@ def calculateSpotmarket(batSpnt):
     if mqttVal('pyPlc/fsm_state') == "CurrentDemand": 
         #if price > mqttVal('/grid/dischargethresh'):
         #    batSpnt = min(mqttVal('/bms/info/dischargepower'), mqttVal("/inverter/info/maxpower"))
-        if price < mqttVal("/grid/evchargethresh"):
+        if price < mqttVal("/grid/evchargethresh") and not mqttVal('evfull'):
             batSpnt = mqttVal('pyPlc/target_current') * mqttVal('pyPlc/charger_voltage')
             batSpnt = -min(batSpnt, config['netzero']['evpower'])
             v2gController.resetIntegrator()
@@ -67,15 +67,17 @@ def regulate(ptotal):
         client.publish("/battery/power", mqttVal("sungrow/signed_battery_power"))
 
 def on_message(client, userdata, msg):
-    global mqttData
+    global mqttData, lastRcv
+    
+    if (time.time() - lastRcv) > 10:
+        regulate(0) #Force run controller
 
     if msg.topic == config['meter']['topic']:
         try:
             data = json.loads(msg.payload)
             ptotal = data['ptotal']
-            client.publish("/meter/power", ptotal)
-            client.publish("/meter/energy", data['etotal'])
             ptotal = (mqttVal('ptotal') + ptotal) / 2
+            lastRcv = time.time()
             regulate(ptotal)
         except ValueError:
             return
@@ -131,6 +133,7 @@ client.publish("/charger/setpoint/voltage", config['netzero']['chargevoltage'])
 
 mqttData = {}
 v2gController = PiController(config['netzero']['powerkp'], config['netzero']['powerki'], -config['netzero']['evpower'], config['netzero']['evpower'])
+lastRcv = time.time()
 
 client.loop_forever()
 
