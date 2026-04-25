@@ -1,4 +1,4 @@
-To run these script you need paho-mqtt, serial und urllib3 for python
+To run these scripts you need paho-mqtt, serial, urllib3 and requests for python
 
 Carefully check all scripts for sanity, e.g. voltage and power limits.
 
@@ -15,3 +15,46 @@ For backward compatibility, a single expression can still be configured via:
 - result_topic: topic where the computed result is published
 
 Broker connection uses "broker.address" and optionally "broker.port" and "broker.keepalive" from config.json.
+
+dwd_forecast.py fetches DWD MOSMIX_L weather forecasts once per hour and publishes solar and
+wind estimates via MQTT so that price_optimizer.py can decide whether PV production will cover
+the battery's charging needs the following day.
+Configure it in config.json under "dwd_forecast":
+- station_id          DWD MOSMIX station ID (e.g. "P755" for Augsburg)
+                      Find stations at https://wettwarn.de/mosmix/mosmix.html
+- panel_area_m2       total PV panel area in m²
+- panel_efficiency    module efficiency as a fraction (default 0.18)
+
+Published topics:
+  /forecast/pv_energy_today     – estimated PV yield for today (kWh)
+  /forecast/pv_energy_tomorrow  – estimated PV yield for tomorrow (kWh)
+  /forecast/avg_wind_ms         – mean wind speed over the next 24 h (m/s)
+  /forecast/wind_factor         – wind speed normalised to [0, 1]
+  /forecast/season              – "summer" (Apr–Sep) or "winter" (Oct–Mar)
+
+price_optimizer.py computes optimal charge and discharge price thresholds and publishes them so
+that netzero.py acts on them automatically.  It supports two storage configurations:
+  - EV (55 kWh default) when pyPlc/fsm_state == "CurrentDemand"
+  - Stationary battery (6 kWh default) at all other times
+
+Algorithm:
+  - Discharge threshold: set to the average spot price of all future hours, so that storage is
+    only discharged when the price is above average.
+  - Charge threshold (summer, sufficient PV forecast): set to -9999 to suppress grid charging
+    entirely – the battery will be filled by PV the following day.
+  - Charge threshold (winter or low PV): find the cheapest N hours needed to fill the storage
+    deficit and set the threshold to that boundary price, reduced by a wind discount
+    (wind_discount_eur_mwh * wind_factor) to capture wind-driven cheap hours.
+
+Configure it in config.json under "price_optimizer":
+- ev_capacity_kwh            EV battery capacity in kWh (default 55)
+- stat_capacity_kwh          stationary battery capacity in kWh (default 6)
+- stat_max_charge_power_w    stationary battery max charge power in W (default 1800)
+- wind_discount_eur_mwh      threshold discount per unit of wind_factor (default 20 EUR/MWh)
+
+Published topics (retained):
+  /grid/chargethresh    – charge stationary battery when spot price is below this (EUR/MWh)
+  /grid/evchargethresh  – charge EV when spot price is below this (EUR/MWh)
+  /grid/dischargethresh – discharge storage only when spot price is above this (EUR/MWh)
+
+Recommended service startup order: spotmarket → dwd_forecast → price_optimizer → netzero
