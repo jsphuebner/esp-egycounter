@@ -38,8 +38,15 @@ that netzero.py acts on them automatically.  It supports two storage configurati
   - Stationary battery (6 kWh default) at all other times
 
 Algorithm:
-  - Discharge threshold: set to the average spot price of all future hours, so that storage is
-    only discharged when the price is above average.
+  - Discharge threshold: determined by how cheaply the battery can be recharged after
+    discharging, accounting for domestic consumption (daily_consumption_kwh, EV excluded):
+    1. Estimate current stored energy = capacity - energy_still_needed.
+    2. Domestic load will drain the battery regardless; subtract it from stored energy.
+    3. Net kWh that must be bought back = max(0, stored - domestic_drain).
+    4. Find the cheapest N future hours to cover net_recharge_kwh and use the Nth price
+       as the discharge threshold.
+    When tomorrow's prices are very cheap (e.g. −1 €/MWh) the threshold drops
+    accordingly, so energy is discharged freely today.
   - Charge threshold (summer, sufficient PV forecast): set to -9999 to suppress grid charging
     entirely – the battery will be filled by PV the following day.
   - Charge threshold (winter or low PV): find the cheapest N hours needed to fill the storage
@@ -51,6 +58,9 @@ Configure it in config.json under "price_optimizer":
 - stat_capacity_kwh          stationary battery capacity in kWh (default 6)
 - stat_max_charge_power_w    stationary battery max charge power in W (default 1800)
 - wind_discount_eur_mwh      threshold discount per unit of wind_factor (default 20 EUR/MWh)
+- daily_consumption_kwh      expected household consumption per day excluding EV charging
+                             (default 10 kWh); used to net out domestic load from the
+                             recharge cost calculation for the discharge threshold
 
 Published topics (retained):
   /grid/chargethresh    – charge stationary battery when spot price is below this (EUR/MWh)
