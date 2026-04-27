@@ -83,22 +83,40 @@ The script sends the counter data from above and merges battery power into the J
 ![](images/web-interface.png)
 
 ## Deye Dummy Cloud (Python)
-Für Deye Mikro-Wechselrichter gibt es jetzt ein Python-Skript als lokalen Cloud-Ersatz unter `battery-control/deye_dummycloud.py`.
-Es akzeptiert die Logger-Verbindung standardmäßig auf TCP-Port `10000`, beantwortet Heartbeat/Handshake/Data-Pakete und dekodiert Mikroinverter-Daten.
+`battery-control/deye_dummycloud.py` acts as a local cloud replacement for Deye micro-inverters. The inverter's WiFi logger normally calls home to Deye's cloud servers; by redirecting it to this script (e.g. via a DNS override or router rule) you keep all data local.
+
+The script accepts the logger's TCP connection (default port `10000`), responds to handshake, heartbeat, WiFi, and data packets, and decodes micro-inverter readings.
 
 Start:
 
     python3 battery-control/deye_dummycloud.py
 
-Optionale Umgebungsvariablen:
+Environment variables:
 
-- `PORT` (Default `10000`)
-- `BIND_HOST` (Default `127.0.0.1`, z.B. `0.0.0.0` für Zugriff aus dem LAN)
-- `LOGLEVEL` (Default `INFO`)
-- `MQTT_BROKER_URL` (optional, z.B. `mqtt://broker.local`)
-- `MQTT_USERNAME` / `MQTT_PASSWORD` (optional)
+| Variable | Default | Description |
+|---|---|---|
+| `PORT` | `10000` | TCP port to listen on |
+| `BIND_HOST` | `127.0.0.1` | Bind address (`0.0.0.0` to accept LAN connections) |
+| `LOGLEVEL` | `INFO` | Log verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
+| `MQTT_BROKER_URL` | *(unset)* | Optional MQTT broker, e.g. `mqtt://broker.local` |
+| `MQTT_USERNAME` | *(unset)* | MQTT username |
+| `MQTT_PASSWORD` | *(unset)* | MQTT password |
 
-Bei gesetztem MQTT-Broker werden dekodierte Daten unter `deye-dummycloud/<loggerSerial>/...` publiziert.
+When an MQTT broker is configured, decoded data is published under `deye-dummycloud/<loggerSerial>/`:
+
+| Topic | Description |
+|---|---|
+| `raw` | Full decoded data as JSON |
+| `pv/<n>/v` | PV string voltage (V) |
+| `pv/<n>/i` | PV string current (A) |
+| `pv/<n>/w` | PV string power (W) |
+| `pv/<n>/kWh_today` | PV string energy today (kWh, retained) |
+| `pv/<n>/kWh_total` | PV string lifetime energy (kWh, retained) |
+| `grid/active_power_w` | Grid feed-in power (W) |
+| `grid/v` | Grid voltage (V) |
+| `grid/hz` | Grid frequency (Hz) |
+| `grid/kWh_today` | Grid energy today (kWh, retained) |
+| `grid/kWh_total` | Grid lifetime energy (kWh, retained) |
 
 # Disclaimer
 As always things I present are somewhat dangerous and you repeat them at your own risk. In terms of safety the system has some shortcomings
