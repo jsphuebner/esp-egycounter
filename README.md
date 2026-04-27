@@ -31,7 +31,7 @@ Most of all though it sends JSON encoded counter data via MQTT to a hard-coded M
 
     {"id":"1EBZ0100200608","etotal":7497.66699219,"ptotal":-57.16,"pphase":[-127.46,70.30,0.00]}
     
-So finally we need to setup some low power Linux computer that runs most of the remaining software. I use a BeagleBone that comes with Debian Linux. All scripts are python, a weird mix of python 2 and 3. You need python-serial and paho-mqtt for Python. Also the mosquitto MQTT broker. That is pretty much it. I have it located near my Ethernet switch to not have to rely on a wifi connection.
+So finally we need to setup some low power Linux computer that runs most of the remaining software. I use a BeagleBone that comes with Debian Linux. All scripts are Python 3. You need python-serial and paho-mqtt for Python. Also the mosquitto MQTT broker. That is pretty much it. I have it located near my Ethernet switch to not have to rely on a wifi connection.
 
 # Charging the battery
 Now lets look into how we can put energy into our battery. I use an NMC battery that is well balanced and that I decided to run without BMS. That is not a brilliant idea and I don't recommend it and plan to change it. But somehow I have to explain the lack of any BMS communication in the scripts later. The battery has an easy SoC curve, it is 50.2V when full and about 40V when empty. By leaving some margin to these extremes I get away without the BMS.
@@ -69,6 +69,11 @@ Inverter power is also governed by battery voltage. Power is ramped down to 0 as
 Since this storage system is AC coupled it can work with as many solar arrays as you like. For example I have 2 solar arrays and the battery can be charged from both. We loose some energy to conversion losses this way but are more flexible also in where we can put the storage system. It actually lives in my desk:
 
 ![](images/system.jpg)
+
+# MQTT Math
+The script `battery-control/mqtt_math.py` allows you to define arithmetic expressions over MQTT topic values and publish the results to new topics. This is useful for combining values from multiple sources, e.g. summing the power from multiple inverters.
+
+Configure `mqtt_math` in `config.json` under the `mqtt_math` key. Each `aliases` entry maps a topic (with an optional JSON `key` path) to a variable name. Each `calculations` entry defines an `expression` using those variable names and a `result_topic` to publish to. Topics that have not yet been received are assumed to be 0.
 
 # Cloudy stuff
 If you run a web server with a database you can deploy some simple php scripts provided in the server-side directory. index.php contains commands to set up your database. You probably want to play with display.php to show what you want.
