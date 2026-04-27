@@ -91,13 +91,13 @@ static bool decodeObis(const uint8_t* buf, uint16_t len, CounterValues& val)
   if (start >= len) return false;
 
   /* Build a String that covers the telegram up to (and including) '!' */
+  uint16_t end = start;
+  while (end < len && buf[end] != '!') end++;
+  if (end < len) end++; /* include the '!' */
+
   String telegram;
-  telegram.reserve(len - start);
-  for (uint16_t i = start; i < len; i++) {
-    char c = (char)buf[i];
-    telegram += c;
-    if (c == '!') break;
-  }
+  telegram.reserve(end - start);
+  telegram.concat((const char*)(buf + start), end - start);
 
   /* Meter ID – try primary OBIS code first, fall back to alternative */
   val.id = obisExtractField(telegram, "1-0:0.0.0");

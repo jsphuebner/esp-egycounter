@@ -103,7 +103,7 @@ function updateTables()
 				}
 				else if (param.type === 'text')
 				{
-					valInput = '<INPUT type="text" value="' + param.value +
+					valInput = '<INPUT type="text" value="' + htmlEscape(param.value) +
 						'" onchange="setTextParam(\'' + name + '\', this.value)"/>';
 				}
 				else
@@ -298,6 +298,18 @@ function setTextParam(name, value)
 	};
 	xmlhttp.open("GET", "/cmd?cmd=" + encodeURIComponent("set " + name + " " + value), true);
 	xmlhttp.send();
+}
+
+/** @brief escape a string for safe insertion into an HTML attribute value
+ * @param str string to escape
+ * @returns escaped string */
+function htmlEscape(str)
+{
+	return String(str)
+		.replace(/&/g, '&amp;')
+		.replace(/"/g, '&quot;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;');
 }
 
 /** @brief open new page with gauges for selected spot values */

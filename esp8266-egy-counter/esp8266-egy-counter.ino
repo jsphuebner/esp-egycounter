@@ -181,9 +181,17 @@ static void saveConfig()
   f.close();
 }
 
+/* Ensure baud/config indices are in valid range before array access */
+static void clampSerialConfig()
+{
+  if (config.serialBaud   < 0 || config.serialBaud   >= BAUD_RATE_COUNT)    config.serialBaud   = 3;
+  if (config.serialConfig < 0 || config.serialConfig >= SERIAL_CONFIG_COUNT) config.serialConfig = 0;
+}
+
 /* Apply serial and MQTT settings from config (called after load or save) */
 static void applySerialConfig()
 {
+  clampSerialConfig();
   Serial.flush();
   Serial.begin(BAUD_RATES[config.serialBaud], SERIAL_CONFIGS[config.serialConfig]);
   Serial.setTimeout(500);
@@ -465,6 +473,7 @@ void setup(void){
   SPIFFS.begin();
   loadConfig();
 
+  clampSerialConfig(); /* guard against corrupted config before array access */
   Serial.begin(BAUD_RATES[config.serialBaud], SERIAL_CONFIGS[config.serialConfig]);
   Serial.setTimeout(500);
 
@@ -531,6 +540,8 @@ void MQTT_connect() {
   lastMqttAttempt = now;
 
   if (config.mqttUser[0] != '\0') {
+    /* NOTE: credentials are stored and transmitted in plaintext – use a
+       private, firewalled network for deployments that require authentication. */
     mqtt.connect(MQTT_CLIENT_ID, config.mqttUser, config.mqttPass);
   } else {
     mqtt.connect(MQTT_CLIENT_ID);
