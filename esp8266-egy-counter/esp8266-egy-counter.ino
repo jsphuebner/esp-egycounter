@@ -54,9 +54,6 @@
 #include "obis_decoder.h"
 
 #define DBG_OUTPUT_PORT Serial
-#define MQTT_CLIENT_ID   "ebzclient"
-#define MQTT_TOPIC_JSON  "/ebz/readings"
-#define MQTT_TOPIC_RAW   "/ebz/raw"
 /* Minimum milliseconds between reconnection attempts */
 #define MQTT_RECONNECT_INTERVAL_MS 5000UL
 #define CONFIG_FILE      "/config.json"
@@ -77,13 +74,16 @@ static const int SERIAL_CONFIG_COUNT = 4;
 
 /* ---- Runtime configuration ---------------------------------------------- */
 struct Config {
-  int  decoder;         /* DECODER_SML or DECODER_OBIS                      */
-  char mqttHost[64];    /* MQTT broker hostname or IP                        */
-  int  mqttPort;        /* MQTT broker port                                  */
-  char mqttUser[32];    /* MQTT username (empty = no auth)                   */
-  char mqttPass[32];    /* MQTT password (empty = no auth)                   */
-  int  serialBaud;      /* index into BAUD_RATES[]  (default 3 = 9600)      */
-  int  serialConfig;    /* index into SERIAL_CONFIGS[] (default 0 = 8N1)    */
+  int  decoder;            /* DECODER_SML or DECODER_OBIS                   */
+  char mqttHost[64];       /* MQTT broker hostname or IP                     */
+  int  mqttPort;           /* MQTT broker port                               */
+  char mqttUser[32];       /* MQTT username (empty = no auth)                */
+  char mqttPass[32];       /* MQTT password (empty = no auth)                */
+  char mqttClientId[32];   /* MQTT client identifier                         */
+  char mqttTopicJson[64];  /* MQTT topic for JSON readings                   */
+  char mqttTopicRaw[64];   /* MQTT topic for raw binary payload              */
+  int  serialBaud;         /* index into BAUD_RATES[]  (default 3 = 9600)   */
+  int  serialConfig;       /* index into SERIAL_CONFIGS[] (default 0 = 8N1) */
 };
 
 static Config config = {
@@ -92,6 +92,9 @@ static Config config = {
   1883,
   "",
   "",
+  "ebzclient",
+  "/ebz/readings",
+  "/ebz/raw",
   3,  /* 9600 baud */
   0   /* 8N1 */
 };
@@ -156,9 +159,12 @@ static void loadConfig()
   config.serialBaud   = parseJsonInt(json, "serialBaud",   3);
   config.serialConfig = parseJsonInt(json, "serialConfig", 0);
 
-  parseJsonString(json, "mqttHost", config.mqttHost, sizeof(config.mqttHost), "192.168.188.23");
-  parseJsonString(json, "mqttUser", config.mqttUser, sizeof(config.mqttUser), "");
-  parseJsonString(json, "mqttPass", config.mqttPass, sizeof(config.mqttPass), "");
+  parseJsonString(json, "mqttHost",      config.mqttHost,      sizeof(config.mqttHost),      "192.168.188.23");
+  parseJsonString(json, "mqttUser",      config.mqttUser,      sizeof(config.mqttUser),      "");
+  parseJsonString(json, "mqttPass",      config.mqttPass,      sizeof(config.mqttPass),      "");
+  parseJsonString(json, "mqttClientId",  config.mqttClientId,  sizeof(config.mqttClientId),  "ebzclient");
+  parseJsonString(json, "mqttTopicJson", config.mqttTopicJson, sizeof(config.mqttTopicJson), "/ebz/readings");
+  parseJsonString(json, "mqttTopicRaw",  config.mqttTopicRaw,  sizeof(config.mqttTopicRaw),  "/ebz/raw");
 
   /* Clamp indices to valid range */
   if (config.serialBaud   < 0 || config.serialBaud   >= BAUD_RATE_COUNT)    config.serialBaud   = 3;
@@ -170,13 +176,16 @@ static void saveConfig()
   File f = SPIFFS.open(CONFIG_FILE, "w");
   if (!f) return;
   f.print("{\n");
-  f.print("  \"decoder\": ");    f.print(config.decoder);      f.print(",\n");
-  f.print("  \"mqttHost\": \""); f.print(config.mqttHost);     f.print("\",\n");
-  f.print("  \"mqttPort\": ");   f.print(config.mqttPort);     f.print(",\n");
-  f.print("  \"mqttUser\": \""); f.print(config.mqttUser);     f.print("\",\n");
-  f.print("  \"mqttPass\": \""); f.print(config.mqttPass);     f.print("\",\n");
-  f.print("  \"serialBaud\": "); f.print(config.serialBaud);   f.print(",\n");
-  f.print("  \"serialConfig\": "); f.print(config.serialConfig); f.print("\n");
+  f.print("  \"decoder\": ");        f.print(config.decoder);        f.print(",\n");
+  f.print("  \"mqttHost\": \"");     f.print(config.mqttHost);       f.print("\",\n");
+  f.print("  \"mqttPort\": ");       f.print(config.mqttPort);       f.print(",\n");
+  f.print("  \"mqttUser\": \"");     f.print(config.mqttUser);       f.print("\",\n");
+  f.print("  \"mqttPass\": \"");     f.print(config.mqttPass);       f.print("\",\n");
+  f.print("  \"mqttClientId\": \""); f.print(config.mqttClientId);   f.print("\",\n");
+  f.print("  \"mqttTopicJson\": \"");f.print(config.mqttTopicJson);  f.print("\",\n");
+  f.print("  \"mqttTopicRaw\": \""); f.print(config.mqttTopicRaw);   f.print("\",\n");
+  f.print("  \"serialBaud\": ");     f.print(config.serialBaud);     f.print(",\n");
+  f.print("  \"serialConfig\": ");   f.print(config.serialConfig);   f.print("\n");
   f.print("}\n");
   f.close();
 }
@@ -225,6 +234,13 @@ static void handleSet(const String& name, const String& value)
   } else if (name == "mqttPass") {
     value.toCharArray(config.mqttPass, sizeof(config.mqttPass));
     mqttChanged = true;
+  } else if (name == "mqttClientId") {
+    value.toCharArray(config.mqttClientId, sizeof(config.mqttClientId));
+    mqttChanged = true;
+  } else if (name == "mqttTopicJson") {
+    value.toCharArray(config.mqttTopicJson, sizeof(config.mqttTopicJson));
+  } else if (name == "mqttTopicRaw") {
+    value.toCharArray(config.mqttTopicRaw, sizeof(config.mqttTopicRaw));
   } else if (name == "serialBaud") {
     int v = value.toInt();
     if (v >= 0 && v < BAUD_RATE_COUNT) { config.serialBaud = v; serialChanged = true; }
@@ -379,8 +395,11 @@ static void handleCommand() {
         "\"decoder\":{\"value\":"      + String(config.decoder)      + ",\"isparam\":true,\"unit\":\"0=SML,1=OBIS\",\"category\":\"Meter\",\"minimum\":0,\"maximum\":1,\"default\":0},"
         "\"mqttHost\":{\"value\":\""   + String(config.mqttHost)     + "\",\"isparam\":true,\"unit\":\"\",\"category\":\"MQTT\",\"type\":\"text\",\"default\":\"localhost\"},"
         "\"mqttPort\":{\"value\":"     + String(config.mqttPort)     + ",\"isparam\":true,\"unit\":\"\",\"category\":\"MQTT\",\"minimum\":1,\"maximum\":65535,\"default\":1883},"
-        "\"mqttUser\":{\"value\":\""   + String(config.mqttUser)     + "\",\"isparam\":true,\"unit\":\"\",\"category\":\"MQTT\",\"type\":\"text\",\"default\":\"\"},"
-        "\"mqttPass\":{\"value\":\""   + String(config.mqttPass)     + "\",\"isparam\":true,\"unit\":\"\",\"category\":\"MQTT\",\"type\":\"text\",\"default\":\"\"},"
+        "\"mqttUser\":{\"value\":\""   + String(config.mqttUser)      + "\",\"isparam\":true,\"unit\":\"\",\"category\":\"MQTT\",\"type\":\"text\",\"default\":\"\"},"
+        "\"mqttPass\":{\"value\":\""   + String(config.mqttPass)      + "\",\"isparam\":true,\"unit\":\"\",\"category\":\"MQTT\",\"type\":\"text\",\"default\":\"\"},"
+        "\"mqttClientId\":{\"value\":\"" + String(config.mqttClientId)  + "\",\"isparam\":true,\"unit\":\"\",\"category\":\"MQTT\",\"type\":\"text\",\"default\":\"ebzclient\"},"
+        "\"mqttTopicJson\":{\"value\":\"" + String(config.mqttTopicJson) + "\",\"isparam\":true,\"unit\":\"\",\"category\":\"MQTT\",\"type\":\"text\",\"default\":\"/ebz/readings\"},"
+        "\"mqttTopicRaw\":{\"value\":\"" + String(config.mqttTopicRaw)  + "\",\"isparam\":true,\"unit\":\"\",\"category\":\"MQTT\",\"type\":\"text\",\"default\":\"/ebz/raw\"},"
         "\"serialBaud\":{\"value\":"   + String(config.serialBaud)   + ",\"isparam\":true,\"unit\":\"0=1200,1=2400,2=4800,3=9600,4=19200,5=38400,6=57600\",\"category\":\"Serial\",\"minimum\":0,\"maximum\":6,\"default\":3},"
         "\"serialConfig\":{\"value\":" + String(config.serialConfig) + ",\"isparam\":true,\"unit\":\"0=8N1,1=7E1,2=8E1,3=8N2\",\"category\":\"Serial\",\"minimum\":0,\"maximum\":3,\"default\":0}"
         "}";
@@ -542,9 +561,9 @@ void MQTT_connect() {
   if (config.mqttUser[0] != '\0') {
     /* NOTE: credentials are stored and transmitted in plaintext – use a
        private, firewalled network for deployments that require authentication. */
-    mqtt.connect(MQTT_CLIENT_ID, config.mqttUser, config.mqttPass);
+    mqtt.connect(config.mqttClientId, config.mqttUser, config.mqttPass);
   } else {
-    mqtt.connect(MQTT_CLIENT_ID);
+    mqtt.connect(config.mqttClientId);
   }
   /* Result is ignored here; mqtt.connected() will reflect the outcome on
      the next call and the interval prevents hammering the broker. */
@@ -563,10 +582,10 @@ void loop(void){
                    : decodeSml(data, len, values);
 
     if (decoded && mqtt.connected()) {
-      mqtt.publish(MQTT_TOPIC_RAW, data, len, false);
+      mqtt.publish(config.mqttTopicRaw, data, len, false);
       String msg;
       ValuesJson(msg);
-      mqtt.publish(MQTT_TOPIC_JSON, msg.c_str());
+      mqtt.publish(config.mqttTopicJson, msg.c_str());
     }
   }
 

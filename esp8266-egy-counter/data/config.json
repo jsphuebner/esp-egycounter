@@ -4,6 +4,9 @@
   "mqttPort": 1883,
   "mqttUser": "",
   "mqttPass": "",
+  "mqttClientId": "ebzclient",
+  "mqttTopicJson": "/ebz/readings",
+  "mqttTopicRaw": "/ebz/raw",
   "serialBaud": 3,
   "serialConfig": 0
 }
