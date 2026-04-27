@@ -7,7 +7,6 @@ import socketserver
 import time
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
-from urllib.parse import urlparse
 
 try:
     import paho.mqtt.client as mqtt
@@ -188,9 +187,10 @@ def parse_data_payload(payload: bytes) -> Optional[Dict[str, Any]]:
 
 
 class MqttPublisher:
-    def __init__(self, broker_url: Optional[str], username: Optional[str], password: Optional[str]):
+    def __init__(self, host: Optional[str], port: int, keepalive: int,
+                 username: Optional[str], password: Optional[str]):
         self._client = None
-        if not broker_url:
+        if not host:
             return
 
         if mqtt is None:
@@ -206,20 +206,10 @@ class MqttPublisher:
         else:
             self._client = mqtt.Client(client_id=client_id)
         if username:
-            self._client.username_pw_set(
-                username,
-                password,
-            )
-        self._client.connect(*self._parse_broker_url(broker_url))
+            self._client.username_pw_set(username, password)
+        self._client.connect(host, port, keepalive)
         self._client.loop_start()
-        logging.info("Connected to MQTT broker %s", broker_url)
-
-    @staticmethod
-    def _parse_broker_url(url: str):
-        parsed = urlparse(url)
-        host = parsed.hostname or "localhost"
-        port = parsed.port or 1883
-        return host, port, 60
+        logging.info("Connected to MQTT broker %s:%s", host, port)
 
     def publish_packet(self, logger_serial: int, payload: Dict[str, Any]) -> None:
         if self._client is None:
@@ -327,6 +317,18 @@ class DeyeConnectionHandler(socketserver.BaseRequestHandler):
 
 
 def main():
+    config_path = os.path.join(os.path.dirname(__file__), "config.json")
+    try:
+        with open(config_path) as config_file:
+            config = json.load(config_file)
+    except FileNotFoundError as ex:
+        raise SystemExit("deye_dummycloud: config file not found: " + config_path) from ex
+    except json.JSONDecodeError as ex:
+        raise SystemExit("deye_dummycloud: invalid JSON in config file " + config_path + ": " + str(ex)) from ex
+
+    dummycloud_config = config.get("deye_dummycloud", {})
+    broker_config = config.get("broker", {})
+
     valid_levels = {
         "DEBUG": logging.DEBUG,
         "INFO": logging.INFO,
@@ -334,13 +336,13 @@ def main():
         "ERROR": logging.ERROR,
         "CRITICAL": logging.CRITICAL,
     }
-    configured_loglevel = os.getenv("LOGLEVEL", "INFO").upper()
+    configured_loglevel = dummycloud_config.get("loglevel", "INFO").upper()
     warning_message = None
     if configured_loglevel in valid_levels:
         effective_loglevel_name = configured_loglevel
     else:
         effective_loglevel_name = "INFO"
-        warning_message = f"Invalid LOGLEVEL '{configured_loglevel}', falling back to INFO"
+        warning_message = f"Invalid loglevel '{configured_loglevel}', falling back to INFO"
 
     loglevel = valid_levels[effective_loglevel_name]
     logging.basicConfig(
@@ -350,16 +352,23 @@ def main():
     if warning_message:
         logging.warning(warning_message)
 
-    host = os.getenv("BIND_HOST", "127.0.0.1")
-    port_value = os.getenv("PORT", "10000")
-    try:
-        port = int(port_value)
-    except ValueError as exc:
-        raise ValueError(f"Invalid PORT value '{port_value}'. Expected an integer.") from exc
+    host = dummycloud_config.get("bind_host", "127.0.0.1")
+    port = dummycloud_config.get("port", 10000)
+    if not isinstance(port, int):
+        raise SystemExit(f"deye_dummycloud: invalid port value '{port}'. Expected an integer.")
+
+    broker_host = broker_config.get("address")
+    broker_port = broker_config.get("port", 1883)
+    broker_keepalive = broker_config.get("keepalive", 60)
+    mqtt_username = dummycloud_config.get("mqtt_username")
+    mqtt_password = dummycloud_config.get("mqtt_password")
+
     mqtt_publisher = MqttPublisher(
-        broker_url=os.getenv("MQTT_BROKER_URL"),
-        username=os.getenv("MQTT_USERNAME"),
-        password=os.getenv("MQTT_PASSWORD"),
+        host=broker_host,
+        port=broker_port,
+        keepalive=broker_keepalive,
+        username=mqtt_username,
+        password=mqtt_password,
     )
 
     with DeyeDummyCloudTCPServer((host, port), DeyeConnectionHandler, mqtt_publisher) as server:

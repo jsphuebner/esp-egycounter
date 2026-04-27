@@ -49,10 +49,10 @@
 		"chargevoltage": 52.6,
 		"evpower": 5000
 	},
-	"spotmarket": {
-		"priceuri": "https://api.tibber.com/v1-beta/gql",
-		"apitype": "tibber",
-		"apikey": "your tibber key"
+	"deye_dummycloud": {
+		"port": 10000,
+		"bind_host": "0.0.0.0",
+		"loglevel": "INFO"
 	},
 	"mqtt_math": {
 		"aliases": [ {
