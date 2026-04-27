@@ -49,30 +49,27 @@
 #include <ArduinoOTA.h>
 #include <FS.h>
 #include <Ticker.h>
-#include <StringReadStream.h>
-#include "Adafruit_MQTT.h"
-#include "Adafruit_MQTT_Client.h"
+#include <PubSubClient.h>
+#include "sml_decoder.h"
 
 #define DBG_OUTPUT_PORT Serial
-
-struct CounterValues
-{
-  String id;
-  float etotal;
-  float ptotal;
-  float pphase[3];
-};
+#define MQTT_BROKER      "192.168.188.23"
+#define MQTT_PORT        1883
+#define MQTT_CLIENT_ID   "ebzclient"
+#define MQTT_TOPIC_JSON  "/ebz/readings"
+#define MQTT_TOPIC_RAW   "/ebz/raw"
+/* Minimum milliseconds between reconnection attempts */
+#define MQTT_RECONNECT_INTERVAL_MS 5000UL
 
 ESP8266WebServer server(80);
 ESP8266HTTPUpdateServer updater;
 //holds the current upload
 File fsUploadFile;
 Ticker sta_tick;
-WiFiClient client;
-Adafruit_MQTT_Client mqtt(&client, "192.168.188.23", 1883);
-Adafruit_MQTT_Publish ebz = Adafruit_MQTT_Publish(&mqtt, "/ebz/readings");
-Adafruit_MQTT_Publish ebzRaw = Adafruit_MQTT_Publish(&mqtt, "/ebz/raw");
+WiFiClient wifiClient;
+PubSubClient mqtt(wifiClient);
 CounterValues values;
+static unsigned long lastMqttAttempt = 0;
 
 //format bytes
 String formatBytes(size_t bytes){
@@ -299,6 +296,10 @@ void setup(void){
   
   MDNS.begin("ebzclient");
 
+  mqtt.setServer(MQTT_BROKER, MQTT_PORT);
+  /* Increase buffer for the raw binary payload (up to 512 bytes + overhead) */
+  mqtt.setBufferSize(640);
+
   updater.setup(&server);
   
   //SERVER INIT
@@ -333,23 +334,21 @@ void setup(void){
 }
 
 void MQTT_connect() {
-  int8_t ret;
-
-  // Stop if already connected.
   if (mqtt.connected()) {
     return;
   }
 
-  uint8_t retries = 3;
-  while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
-       mqtt.disconnect();
-       delay(1000);  // wait 5 seconds
-       retries--;
-       if (retries == 0) {
-         // basically die and wait for WDT to reset me
-         return;
-       }
+  /* Only attempt reconnection after the back-off interval has elapsed so that
+     a broker outage does not block or spam the network. */
+  unsigned long now = millis();
+  if (now - lastMqttAttempt < MQTT_RECONNECT_INTERVAL_MS) {
+    return;
   }
+  lastMqttAttempt = now;
+
+  mqtt.connect(MQTT_CLIENT_ID);
+  /* Result is ignored here; mqtt.connected() will reflect the outcome on
+     the next call and the interval prevents hammering the broker. */
 }
  
 void loop(void){
@@ -358,9 +357,18 @@ void loop(void){
   uint8_t data[512];
   yield();
   uint16_t len = Serial.readBytes(data, 512);
-  ebzRaw.publish(data, len);
+
+  if (len > 0) {
+    decodeSml(data, len, values);
+    if (mqtt.connected()) {
+      mqtt.publish(MQTT_TOPIC_RAW, data, len, false);
+      String msg;
+      ValuesJson(msg);
+      mqtt.publish(MQTT_TOPIC_JSON, msg.c_str());
+    }
+  }
 
   server.handleClient();
-
+  mqtt.loop();
   MQTT_connect();
 }
