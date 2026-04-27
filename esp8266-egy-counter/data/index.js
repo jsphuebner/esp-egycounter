@@ -101,6 +101,11 @@ function updateTables()
 					}
 					unit = "";
 				}
+				else if (param.type === 'text')
+				{
+					valInput = '<INPUT type="text" value="' + param.value +
+						'" onchange="setTextParam(\'' + name + '\', this.value)"/>';
+				}
 				else
 				{
 					valInput = '<INPUT type="number" min="' + param.minimum + '" max="' + param.maximum + 
@@ -279,6 +284,20 @@ function sendCmd(cmd)
 	{
 		document.getElementById("message").innerHTML = reply;
 	});
+}
+
+/** @brief send a "set" command for a text parameter, properly encoding the value
+ * @param name parameter name
+ * @param value new text value */
+function setTextParam(name, value)
+{
+	var xmlhttp = new XMLHttpRequest();
+	xmlhttp.onload = function()
+	{
+		document.getElementById("message").innerHTML = this.responseText;
+	};
+	xmlhttp.open("GET", "/cmd?cmd=" + encodeURIComponent("set " + name + " " + value), true);
+	xmlhttp.send();
 }
 
 /** @brief open new page with gauges for selected spot values */
