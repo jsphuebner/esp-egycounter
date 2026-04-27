@@ -83,41 +83,41 @@ The script sends the counter data from above and merges battery power into the J
 ![](images/web-interface.png)
 
 ## Deye Dummy Cloud (Python)
-`battery-control/deye_dummycloud.py` ersetzt die Deye-Cloud für Mikro-Wechselrichter lokal. Der WLAN-Logger des Wechselrichters verbindet sich normalerweise mit den Deye-Cloud-Servern; durch eine DNS-Umleitung oder Router-Regel zeigt er stattdessen auf dieses Skript und alle Daten bleiben lokal.
+`battery-control/deye_dummycloud.py` acts as a local cloud replacement for Deye micro-inverters. The inverter's WiFi logger normally calls home to Deye's cloud servers; by redirecting it to this script (e.g. via a DNS override or router rule) you keep all data local.
 
-Das Skript nimmt die TCP-Verbindung des Loggers entgegen, beantwortet Handshake-, Heartbeat-, WLAN- und Datenpakete und dekodiert die Wechselrichterdaten.
+The script accepts the logger's TCP connection, responds to handshake, heartbeat, WiFi, and data packets, and decodes micro-inverter readings.
 
 Start:
 
     python3 battery-control/deye_dummycloud.py
 
-Konfiguration in `battery-control/config.json` unter dem Schlüssel `deye_dummycloud`:
+Configure via the `deye_dummycloud` key in `battery-control/config.json`:
 
-| Schlüssel | Standard | Beschreibung |
+| Key | Default | Description |
 |---|---|---|
-| `port` | `10000` | TCP-Port, auf dem das Skript lauscht |
-| `bind_host` | `127.0.0.1` | Bind-Adresse (`0.0.0.0` für Zugriff aus dem LAN) |
-| `loglevel` | `INFO` | Log-Stufe (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
-| `mqtt_username` | *(nicht gesetzt)* | Optionaler MQTT-Benutzername |
-| `mqtt_password` | *(nicht gesetzt)* | Optionales MQTT-Passwort |
+| `port` | `10000` | TCP port to listen on |
+| `bind_host` | `127.0.0.1` | Bind address (`0.0.0.0` to accept LAN connections) |
+| `loglevel` | `INFO` | Log verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
+| `mqtt_username` | *(unset)* | Optional MQTT username |
+| `mqtt_password` | *(unset)* | Optional MQTT password |
 
-Der MQTT-Broker wird aus dem globalen `broker`-Abschnitt der `config.json` übernommen (gleicher Broker wie die anderen Skripte).
+The MQTT broker is taken from the global `broker` section of `config.json` (shared with all other scripts).
 
-Bei konfiguriertem MQTT-Broker werden dekodierte Daten unter `deye-dummycloud/<loggerSerial>/` veröffentlicht:
+When an MQTT broker is configured, decoded data is published under `deye-dummycloud/<loggerSerial>/`:
 
-| Topic | Beschreibung |
+| Topic | Description |
 |---|---|
-| `raw` | Alle dekodieren Daten als JSON |
-| `pv/<n>/v` | PV-Strangspannung (V) |
-| `pv/<n>/i` | PV-Strangstrom (A) |
-| `pv/<n>/w` | PV-Strangleistung (W) |
-| `pv/<n>/kWh_today` | PV-Energie heute (kWh, retained) |
-| `pv/<n>/kWh_total` | PV-Gesamtenergie (kWh, retained) |
-| `grid/active_power_w` | Einspeiseleistung (W) |
-| `grid/v` | Netzspannung (V) |
-| `grid/hz` | Netzfrequenz (Hz) |
-| `grid/kWh_today` | Netzenergie heute (kWh, retained) |
-| `grid/kWh_total` | Netzgesamtenergie (kWh, retained) |
+| `raw` | Full decoded data as JSON |
+| `pv/<n>/v` | PV string voltage (V) |
+| `pv/<n>/i` | PV string current (A) |
+| `pv/<n>/w` | PV string power (W) |
+| `pv/<n>/kWh_today` | PV string energy today (kWh, retained) |
+| `pv/<n>/kWh_total` | PV string lifetime energy (kWh, retained) |
+| `grid/active_power_w` | Grid feed-in power (W) |
+| `grid/v` | Grid voltage (V) |
+| `grid/hz` | Grid frequency (Hz) |
+| `grid/kWh_today` | Grid energy today (kWh, retained) |
+| `grid/kWh_total` | Grid lifetime energy (kWh, retained) |
 
 # Disclaimer
 As always things I present are somewhat dangerous and you repeat them at your own risk. In terms of safety the system has some shortcomings
