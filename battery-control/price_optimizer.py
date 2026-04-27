@@ -57,6 +57,10 @@
 #   daily_consumption_kwh     expected daily household consumption excluding EV
 #                             (default 10 kWh); used to reduce the effective
 #                             recharge need when calculating the discharge threshold
+#   roundtrip_efficiency      storage round-trip efficiency as a fraction (default 0.8);
+#                             grid charging is suppressed whenever the cheapest available
+#                             charge price exceeds discharge_thresh × efficiency, because
+#                             the energy could not be recouped after the storage loss
 
 import json
 import math
@@ -185,13 +189,21 @@ def calculate_thresholds():
         # the absolute price level is moderate.
         wind_discount = wind_factor * wind_discount_eur_mwh
 
-        charge_thresh = sorted_prices[hours_needed - 1] - wind_discount
+        # Only charge from grid if the stored energy can later be discharged at
+        # a price that covers the round-trip loss.  The break-even charge price
+        # is discharge_thresh × roundtrip_efficiency; charging above this limit
+        # would cost more (after storage losses) than the value recovered.
+        profitable_charge_limit = discharge_thresh * roundtrip_efficiency
+
+        charge_thresh = min(sorted_prices[hours_needed - 1] - wind_discount,
+                            profitable_charge_limit)
         ev_charge_thresh = charge_thresh
 
         print(
             f'Charging plan: needed={needed:.1f} kWh, '
             f'{hours_needed} h at {charge_kw:.1f} kW, '
-            f'charge_thresh={charge_thresh:.1f} EUR/MWh, '
+            f'charge_thresh={charge_thresh:.1f} EUR/MWh '
+            f'(profitable_limit={profitable_charge_limit:.1f}), '
             f'discharge_thresh={discharge_thresh:.1f} EUR/MWh, '
             f'wind_discount={wind_discount:.1f}'
         )
@@ -242,6 +254,7 @@ stat_capacity_kwh = float(opt_cfg.get('stat_capacity_kwh', 6))
 stat_max_charge_w = float(opt_cfg.get('stat_max_charge_power_w', 1800))
 wind_discount_eur_mwh = float(opt_cfg.get('wind_discount_eur_mwh', 20))
 daily_consumption_kwh = float(opt_cfg.get('daily_consumption_kwh', 10))
+roundtrip_efficiency = float(opt_cfg.get('roundtrip_efficiency', 0.8))
 
 client = mqtt.Client(client_id='price_optimizer')
 client.on_message = on_message

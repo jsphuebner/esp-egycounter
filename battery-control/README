@@ -52,6 +52,9 @@ Algorithm:
   - Charge threshold (winter or low PV): find the cheapest N hours needed to fill the storage
     deficit and set the threshold to that boundary price, reduced by a wind discount
     (wind_discount_eur_mwh * wind_factor) to capture wind-driven cheap hours.
+    The threshold is further capped at discharge_thresh × roundtrip_efficiency: if the
+    cheapest available charge price exceeds this limit the stored energy could not be
+    recouped after losses, so grid charging is suppressed automatically.
 
 Configure it in config.json under "price_optimizer":
 - ev_capacity_kwh            EV battery capacity in kWh (default 55)
@@ -61,6 +64,9 @@ Configure it in config.json under "price_optimizer":
 - daily_consumption_kwh      expected household consumption per day excluding EV charging
                              (default 10 kWh); used to net out domestic load from the
                              recharge cost calculation for the discharge threshold
+- roundtrip_efficiency       storage round-trip efficiency as a fraction (default 0.8);
+                             grid charging is not triggered when its cost exceeds
+                             discharge_thresh × efficiency
 
 Published topics (retained):
   /grid/chargethresh    – charge stationary battery when spot price is below this (EUR/MWh)
