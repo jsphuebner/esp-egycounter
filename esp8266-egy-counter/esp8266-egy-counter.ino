@@ -52,16 +52,9 @@
 #include <StringReadStream.h>
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
+#include "sml_decoder.h"
 
 #define DBG_OUTPUT_PORT Serial
-
-struct CounterValues
-{
-  String id;
-  float etotal;
-  float ptotal;
-  float pphase[3];
-};
 
 ESP8266WebServer server(80);
 ESP8266HTTPUpdateServer updater;
@@ -358,7 +351,15 @@ void loop(void){
   uint8_t data[512];
   yield();
   uint16_t len = Serial.readBytes(data, 512);
-  ebzRaw.publish(data, len);
+
+  if (len > 0) {
+    decodeSml(data, len, values);
+    ebzRaw.publish(data, len);
+
+    String msg;
+    ValuesJson(msg);
+    ebz.publish(msg.c_str());
+  }
 
   server.handleClient();
 
