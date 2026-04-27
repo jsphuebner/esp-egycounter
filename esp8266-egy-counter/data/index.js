@@ -77,7 +77,6 @@ function updateTables()
 			if (param.isparam)
 			{
 				var valInput;
-				var unit = param.unit;
 				params[name] = param.value;
 
 				if (param.category != lastCategory)
@@ -99,7 +98,6 @@ function updateTables()
 							valInput += " selected";
 						valInput += '>' + param.enums[idx] + '</OPTION>';
 					}
-					unit = "";
 				}
 				else if (param.type === 'text')
 				{
@@ -108,11 +106,10 @@ function updateTables()
 				}
 				else
 				{
-					valInput = '<INPUT type="number" min="' + param.minimum + '" max="' + param.maximum + 
-						'" step="0.05" value="' + param.value + '" onchange="sendCmd(\'set ' + name + ' \' + this.value)"/>';
+					valInput = '<INPUT type="text" value="' + param.value + '" onchange="sendCmd(\'set ' + name + ' \' + this.value)"/>';
 				}
 				
-				addRow(tableParam, [ name, valInput, unit, param.minimum, param.maximum, param.default ]);
+				addRow(tableParam, [ name, valInput, param.default ]);
 			}
 			else
 			{
