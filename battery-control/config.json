@@ -54,6 +54,19 @@
 		"apitype": "tibber",
 		"apikey": "your tibber key"
 	},
+	"dwd_forecast": {
+		"station_id": "P755",
+		"panel_area_m2": 20.0,
+		"panel_efficiency": 0.18
+	},
+	"price_optimizer": {
+		"ev_capacity_kwh": 55,
+		"stat_capacity_kwh": 6,
+		"stat_max_charge_power_w": 1800,
+		"wind_discount_eur_mwh": 20,
+		"daily_consumption_kwh": 10,
+		"roundtrip_efficiency": 0.8
+	},
 	"mqtt_math": {
 		"aliases": [ {
 				"topic": "deye-dummycloud/3851343667/grid/active_power_w",
