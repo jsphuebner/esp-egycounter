@@ -384,14 +384,8 @@ static void handleCommand() {
 
     if (cmd == "json")
     {
-      /* Spot values (isparam=false) */
+      /* Configuration parameters (isparam=true) */
       output = "{"
-        "\"etotal\":{\"value\":" + String(values.etotal, 8) + ",\"isparam\":false,\"unit\":\"kWh\"},"
-        "\"ptotal\":{\"value\":" + String(values.ptotal)    + ",\"isparam\":false,\"unit\":\"W\"},"
-        "\"pL1\":{\"value\":"    + String(values.pphase[0]) + ",\"isparam\":false,\"unit\":\"W\"},"
-        "\"pL2\":{\"value\":"    + String(values.pphase[1]) + ",\"isparam\":false,\"unit\":\"W\"},"
-        "\"pL3\":{\"value\":"    + String(values.pphase[2]) + ",\"isparam\":false,\"unit\":\"W\"},"
-        /* Configuration parameters (isparam=true) */
         "\"decoder\":{\"value\":"      + String(config.decoder)      + ",\"isparam\":true,\"unit\":\"0=SML,1=OBIS\",\"category\":\"Meter\",\"minimum\":0,\"maximum\":1,\"default\":0},"
         "\"mqttHost\":{\"value\":\""   + String(config.mqttHost)     + "\",\"isparam\":true,\"unit\":\"\",\"category\":\"MQTT\",\"type\":\"text\",\"default\":\"localhost\"},"
         "\"mqttPort\":{\"value\":"     + String(config.mqttPort)     + ",\"isparam\":true,\"unit\":\"\",\"category\":\"MQTT\",\"minimum\":1,\"maximum\":65535,\"default\":1883},"
@@ -401,7 +395,13 @@ static void handleCommand() {
         "\"mqttTopicJson\":{\"value\":\"" + String(config.mqttTopicJson) + "\",\"isparam\":true,\"unit\":\"\",\"category\":\"MQTT\",\"type\":\"text\",\"default\":\"/ebz/readings\"},"
         "\"mqttTopicRaw\":{\"value\":\"" + String(config.mqttTopicRaw)  + "\",\"isparam\":true,\"unit\":\"\",\"category\":\"MQTT\",\"type\":\"text\",\"default\":\"/ebz/raw\"},"
         "\"serialBaud\":{\"value\":"   + String(config.serialBaud)   + ",\"isparam\":true,\"unit\":\"0=1200,1=2400,2=4800,3=9600,4=19200,5=38400,6=57600\",\"category\":\"Serial\",\"minimum\":0,\"maximum\":6,\"default\":3},"
-        "\"serialConfig\":{\"value\":" + String(config.serialConfig) + ",\"isparam\":true,\"unit\":\"0=8N1,1=7E1,2=8E1,3=8N2\",\"category\":\"Serial\",\"minimum\":0,\"maximum\":3,\"default\":0}"
+        "\"serialConfig\":{\"value\":" + String(config.serialConfig) + ",\"isparam\":true,\"unit\":\"0=8N1,1=7E1,2=8E1,3=8N2\",\"category\":\"Serial\",\"minimum\":0,\"maximum\":3,\"default\":0},"
+        /* Spot values (isparam=false) */
+        "\"etotal\":{\"value\":" + String(values.etotal, 8) + ",\"isparam\":false,\"unit\":\"kWh\"},"
+        "\"ptotal\":{\"value\":" + String(values.ptotal)    + ",\"isparam\":false,\"unit\":\"W\"},"
+        "\"pL1\":{\"value\":"    + String(values.pphase[0]) + ",\"isparam\":false,\"unit\":\"W\"},"
+        "\"pL2\":{\"value\":"    + String(values.pphase[1]) + ",\"isparam\":false,\"unit\":\"W\"},"
+        "\"pL3\":{\"value\":"    + String(values.pphase[2]) + ",\"isparam\":false,\"unit\":\"W\"}"
         "}";
     }
     else if (cmd == "get ptotal")
