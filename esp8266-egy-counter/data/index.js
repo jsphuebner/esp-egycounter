@@ -153,7 +153,7 @@ function updateTables()
 					display = param.value;
 				}
 
-				addRow(tableSpot, [ name, display, unit, checkHtml, canIdHtml, canPosHtml, canBitsHtml, canGainHtml, buttonHtml ]);
+				addRow(tableSpot, [ name, display, unit, checkHtml ]);
 			}
 		}
 		document.getElementById("paramDownload").href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(params, null, 2));
