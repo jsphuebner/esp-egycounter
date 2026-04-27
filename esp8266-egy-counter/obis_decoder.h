@@ -11,6 +11,7 @@
  *   1-0:0.0.0   meter ID (string)
  *   0-0:1.0.0   meter ID – alternative code used by some meters
  *   1-0:1.8.0   total energy import [kWh]
+ *   1-0:2.8.0   total energy export [kWh]
  *   1-0:16.7.0  total current power [kW] → stored as W
  *   1-0:21.7.0  L1 power [kW] → stored as W
  *   1-0:41.7.0  L2 power [kW] → stored as W
@@ -75,6 +76,7 @@ static float obisExtractFloat(const String& telegram, const char* obisCode)
  *
  *   val.id         ← OBIS 1-0:0.0.0  (or 0-0:1.0.0)  meter ID
  *   val.etotal     ← OBIS 1-0:1.8.0  total energy import [kWh]
+ *   val.eexport    ← OBIS 1-0:2.8.0  total energy export [kWh]
  *   val.ptotal     ← OBIS 1-0:16.7.0 total power [W]  (source is kW)
  *   val.pphase[0]  ← OBIS 1-0:21.7.0 L1 power [W]
  *   val.pphase[1]  ← OBIS 1-0:41.7.0 L2 power [W]
@@ -106,6 +108,9 @@ static bool decodeObis(const uint8_t* buf, uint16_t len, CounterValues& val)
 
   /* Total energy import in kWh */
   val.etotal = obisExtractFloat(telegram, "1-0:1.8.0");
+
+  /* Total energy export in kWh */
+  val.eexport = obisExtractFloat(telegram, "1-0:2.8.0");
 
   /* Power values: source unit is kW, stored as W */
   val.ptotal    = obisExtractFloat(telegram, "1-0:16.7.0") * 1000.0f;

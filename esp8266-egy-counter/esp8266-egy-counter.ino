@@ -397,7 +397,8 @@ static void handleCommand() {
         "\"serialBaud\":{\"value\":"   + String(config.serialBaud)   + ",\"isparam\":true,\"unit\":\"0=1200,1=2400,2=4800,3=9600,4=19200,5=38400,6=57600\",\"category\":\"Serial\",\"minimum\":0,\"maximum\":6,\"default\":3},"
         "\"serialConfig\":{\"value\":" + String(config.serialConfig) + ",\"isparam\":true,\"unit\":\"0=8N1,1=7E1,2=8E1,3=8N2\",\"category\":\"Serial\",\"minimum\":0,\"maximum\":3,\"default\":0},"
         /* Spot values (isparam=false) */
-        "\"etotal\":{\"value\":" + String(values.etotal, 8) + ",\"isparam\":false,\"unit\":\"kWh\"},"
+        "\"etotal\":{\"value\":" + String(values.etotal, 8)  + ",\"isparam\":false,\"unit\":\"kWh\"},"
+        "\"eexport\":{\"value\":" + String(values.eexport, 8) + ",\"isparam\":false,\"unit\":\"kWh\"},"
         "\"ptotal\":{\"value\":" + String(values.ptotal)    + ",\"isparam\":false,\"unit\":\"W\"},"
         "\"pL1\":{\"value\":"    + String(values.pphase[0]) + ",\"isparam\":false,\"unit\":\"W\"},"
         "\"pL2\":{\"value\":"    + String(values.pphase[1]) + ",\"isparam\":false,\"unit\":\"W\"},"
@@ -437,8 +438,9 @@ static void ValuesJson(String& output)
 {
   output = "{\"id\":\"" + values.id
     + "\",\"etotal\":" + String(values.etotal, 8)
+    + ",\"eexport\":" + String(values.eexport, 8)
     + ",\"ptotal\":" + String(values.ptotal)
-    + ",\"pphase\":[" + String(values.pphase[0]) + "," + String(values.pphase[1]) + "," + String(values.pphase[2]) + "]}";  
+    + ",\"pphase\":[" + String(values.pphase[0]) + "," + String(values.pphase[1]) + "," + String(values.pphase[2]) + "]}";
 }
 
 static void handleValues() {
