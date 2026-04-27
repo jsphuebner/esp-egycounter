@@ -24,6 +24,7 @@ struct CounterValues
 {
   String id;       /* meter ID (hex string of server-ID bytes)     */
   float  etotal;   /* total energy import  [kWh]                   */
+  float  eexport;  /* total energy export  [kWh]                   */
   float  ptotal;   /* total current power  [W]                     */
   float  pphase[3];/* per-phase power L1/L2/L3  [W]               */
 };
@@ -38,12 +39,13 @@ struct CounterValues
 #define SML_MSG_GETLISTRES    0x0701u
 
 /* ---- Well-known OBIS object-name codes (6 bytes each) ------------------ */
-static const uint8_t OBIS_METER_ID[6]    = { 0x01, 0x00, 0x60, 0x01, 0x00, 0xFF };
-static const uint8_t OBIS_ENERGY_IN[6]   = { 0x01, 0x00, 0x01, 0x08, 0x00, 0xFF };
-static const uint8_t OBIS_POWER_TOTAL[6] = { 0x01, 0x00, 0x10, 0x07, 0x00, 0xFF };
-static const uint8_t OBIS_POWER_L1[6]    = { 0x01, 0x00, 0x15, 0x07, 0x00, 0xFF };
-static const uint8_t OBIS_POWER_L2[6]    = { 0x01, 0x00, 0x29, 0x07, 0x00, 0xFF };
-static const uint8_t OBIS_POWER_L3[6]    = { 0x01, 0x00, 0x3D, 0x07, 0x00, 0xFF };
+static const uint8_t OBIS_METER_ID[6]     = { 0x01, 0x00, 0x60, 0x01, 0x00, 0xFF };
+static const uint8_t OBIS_ENERGY_IN[6]    = { 0x01, 0x00, 0x01, 0x08, 0x00, 0xFF };
+static const uint8_t OBIS_ENERGY_OUT[6]   = { 0x01, 0x00, 0x02, 0x08, 0x00, 0xFF };
+static const uint8_t OBIS_POWER_TOTAL[6]  = { 0x01, 0x00, 0x10, 0x07, 0x00, 0xFF };
+static const uint8_t OBIS_POWER_L1[6]     = { 0x01, 0x00, 0x15, 0x07, 0x00, 0xFF };
+static const uint8_t OBIS_POWER_L2[6]     = { 0x01, 0x00, 0x29, 0x07, 0x00, 0xFF };
+static const uint8_t OBIS_POWER_L3[6]     = { 0x01, 0x00, 0x3D, 0x07, 0x00, 0xFF };
 
 /* ---- SML framing ------------------------------------------------------- */
 static const uint8_t SML_ESCAPE_SEQ[4] = { 0x1B, 0x1B, 0x1B, 0x1B };
@@ -182,6 +184,7 @@ static void smlParseListEntry(const uint8_t *buf, uint16_t bufLen, uint16_t &pos
   /* ---- Item 0: objectName ---- */
   bool isMeterID    = false;
   bool isEnergyIn   = false;
+  bool isEnergyOut  = false;
   bool isPowerTotal = false;
   bool isPowerL1    = false;
   bool isPowerL2    = false;
@@ -196,6 +199,7 @@ static void smlParseListEntry(const uint8_t *buf, uint16_t bufLen, uint16_t &pos
       const uint8_t *obis = buf + p2;
       if      (memcmp(obis, OBIS_METER_ID,    6) == 0) isMeterID    = true;
       else if (memcmp(obis, OBIS_ENERGY_IN,   6) == 0) isEnergyIn   = true;
+      else if (memcmp(obis, OBIS_ENERGY_OUT,  6) == 0) isEnergyOut  = true;
       else if (memcmp(obis, OBIS_POWER_TOTAL, 6) == 0) isPowerTotal = true;
       else if (memcmp(obis, OBIS_POWER_L1,    6) == 0) isPowerL1    = true;
       else if (memcmp(obis, OBIS_POWER_L2,    6) == 0) isPowerL2    = true;
@@ -204,7 +208,7 @@ static void smlParseListEntry(const uint8_t *buf, uint16_t bufLen, uint16_t &pos
   }
   smlSkip(buf, bufLen, pos); /* consume item 0 */
 
-  bool relevant = isMeterID | isEnergyIn | isPowerTotal |
+  bool relevant = isMeterID | isEnergyIn | isEnergyOut | isPowerTotal |
                   isPowerL1  | isPowerL2  | isPowerL3;
 
   if (!relevant) {
@@ -257,6 +261,7 @@ static void smlParseListEntry(const uint8_t *buf, uint16_t bufLen, uint16_t &pos
           float   scaled = smlScaled(raw, scaler);
 
           if      (isEnergyIn)   val.etotal    = scaled / 1000.0f; /* Wh → kWh */
+          else if (isEnergyOut)  val.eexport   = scaled / 1000.0f; /* Wh → kWh */
           else if (isPowerTotal) val.ptotal    = scaled;
           else if (isPowerL1)    val.pphase[0] = scaled;
           else if (isPowerL2)    val.pphase[1] = scaled;
@@ -338,6 +343,7 @@ static void smlParseGetListRes(const uint8_t *buf, uint16_t bufLen, uint16_t &po
  *
  *   val.id         ← OBIS 1.0.96.1.0.255  meter ID (hex string)
  *   val.etotal     ← OBIS 1.0.1.8.0.255   total energy import (kWh)
+ *   val.eexport    ← OBIS 1.0.2.8.0.255   total energy export (kWh)
  *   val.ptotal     ← OBIS 1.0.16.7.0.255  total power (W)
  *   val.pphase[0]  ← OBIS 1.0.21.7.0.255  power L1 (W)
  *   val.pphase[1]  ← OBIS 1.0.41.7.0.255  power L2 (W)

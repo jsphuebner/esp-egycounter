@@ -1,0 +1,12 @@
+{
+  "decoder": 0,
+  "mqttHost": "192.168.188.23",
+  "mqttPort": 1883,
+  "mqttUser": "",
+  "mqttPass": "",
+  "mqttClientId": "ebzclient",
+  "mqttTopicJson": "/ebz/readings",
+  "mqttTopicRaw": "/ebz/raw",
+  "serialBaud": 3,
+  "serialConfig": 0
+}

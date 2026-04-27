@@ -77,7 +77,6 @@ function updateTables()
 			if (param.isparam)
 			{
 				var valInput;
-				var unit = param.unit;
 				params[name] = param.value;
 
 				if (param.category != lastCategory)
@@ -99,15 +98,18 @@ function updateTables()
 							valInput += " selected";
 						valInput += '>' + param.enums[idx] + '</OPTION>';
 					}
-					unit = "";
+				}
+				else if (param.type === 'text')
+				{
+					valInput = '<INPUT type="text" value="' + htmlEscape(param.value) +
+						'" onchange="setTextParam(\'' + name + '\', this.value)"/>';
 				}
 				else
 				{
-					valInput = '<INPUT type="number" min="' + param.minimum + '" max="' + param.maximum + 
-						'" step="0.05" value="' + param.value + '" onchange="sendCmd(\'set ' + name + ' \' + this.value)"/>';
+					valInput = '<INPUT type="text" value="' + param.value + '" onchange="sendCmd(\'set ' + name + ' \' + this.value)"/>';
 				}
 				
-				addRow(tableParam, [ name, valInput, unit, param.minimum, param.maximum, param.default ]);
+				addRow(tableParam, [ name, valInput, param.default ]);
 			}
 			else
 			{
@@ -151,7 +153,7 @@ function updateTables()
 					display = param.value;
 				}
 
-				addRow(tableSpot, [ name, display, unit, checkHtml, canIdHtml, canPosHtml, canBitsHtml, canGainHtml, buttonHtml ]);
+				addRow(tableSpot, [ name, display, unit, checkHtml ]);
 			}
 		}
 		document.getElementById("paramDownload").href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(params, null, 2));
@@ -279,6 +281,32 @@ function sendCmd(cmd)
 	{
 		document.getElementById("message").innerHTML = reply;
 	});
+}
+
+/** @brief send a "set" command for a text parameter, properly encoding the value
+ * @param name parameter name
+ * @param value new text value */
+function setTextParam(name, value)
+{
+	var xmlhttp = new XMLHttpRequest();
+	xmlhttp.onload = function()
+	{
+		document.getElementById("message").innerHTML = this.responseText;
+	};
+	xmlhttp.open("GET", "/cmd?cmd=" + encodeURIComponent("set " + name + " " + value), true);
+	xmlhttp.send();
+}
+
+/** @brief escape a string for safe insertion into an HTML attribute value
+ * @param str string to escape
+ * @returns escaped string */
+function htmlEscape(str)
+{
+	return String(str)
+		.replace(/&/g, '&amp;')
+		.replace(/"/g, '&quot;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;');
 }
 
 /** @brief open new page with gauges for selected spot values */
