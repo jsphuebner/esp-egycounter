@@ -71,7 +71,7 @@ Since this storage system is AC coupled it can work with as many solar arrays as
 ![](images/system.jpg)
 
 # BMS Integration
-The script `battery-control/oi_bms.py` integrates a CAN-bus BMS (Battery Management System) that uses the OpenInverter BMS protocol. It reads CAN frames from the BMS, decodes charge/discharge limits, state of charge, pack voltage, current, and individual cell voltages, and publishes them to MQTT.
+The script `battery-control/oi_bms.py` integrates a CAN-bus BMS (Battery Management System) that uses the [OpenInverter 16-cell BMS](https://openinverter.org/wiki/16-cell_BMS) protocol. It reads CAN frames from the BMS, decodes charge/discharge limits, state of charge, pack voltage, current, and individual cell voltages, and publishes them to MQTT.
 
 Configure the BMS in `config.json` under the `bms` key:
 
