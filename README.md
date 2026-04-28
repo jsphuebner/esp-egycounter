@@ -31,10 +31,10 @@ Most of all though it sends JSON encoded counter data via MQTT to a hard-coded M
 
     {"id":"1EBZ0100200608","etotal":7497.66699219,"ptotal":-57.16,"pphase":[-127.46,70.30,0.00]}
     
-So finally we need to setup some low power Linux computer that runs most of the remaining software. I use a BeagleBone that comes with Debian Linux. All scripts are python, a weird mix of python 2 and 3. You need python-serial and paho-mqtt for Python. Also the mosquitto MQTT broker. That is pretty much it. I have it located near my Ethernet switch to not have to rely on a wifi connection.
+So finally we need to setup some low power Linux computer that runs most of the remaining software. I use a BeagleBone that comes with Debian Linux. All scripts are Python 3. You need python-serial and paho-mqtt for Python. Also the mosquitto MQTT broker. That is pretty much it. I have it located near my Ethernet switch to not have to rely on a wifi connection.
 
 # Charging the battery
-Now lets look into how we can put energy into our battery. I use an NMC battery that is well balanced and that I decided to run without BMS. That is not a brilliant idea and I don't recommend it and plan to change it. But somehow I have to explain the lack of any BMS communication in the scripts later. The battery has an easy SoC curve, it is 50.2V when full and about 40V when empty. By leaving some margin to these extremes I get away without the BMS.
+Now lets look into how we can put energy into our battery. I use an NMC battery. The battery has an easy SoC curve, it is 50.2V when full and about 40V when empty.
 
 Ok, charging, finally. I use a Manson HCS-3604 switch mode power supply, rated 60V, 15A. You can use any switch mode supply you can get ahold of as long as it provides the correct voltage and sufficient power AND can be controlled externally.
 
@@ -70,6 +70,35 @@ Since this storage system is AC coupled it can work with as many solar arrays as
 
 ![](images/system.jpg)
 
+# BMS Integration
+The script `battery-control/oi_bms.py` integrates a CAN-bus BMS (Battery Management System) that uses the [OpenInverter 16-cell BMS](https://openinverter.org/wiki/16-cell_BMS) protocol. It reads CAN frames from the BMS, decodes charge/discharge limits, state of charge, pack voltage, current, and individual cell voltages, and publishes them to MQTT.
+
+Configure the BMS in `config.json` under the `bms` key:
+
+| Key | Description |
+|---|---|
+| `can` | SocketCAN interface name (e.g. `can1`) |
+| `modulecount` | Number of BMS modules in the pack |
+
+Published MQTT topics:
+
+| Topic | Description |
+|---|---|
+| `/bms/info/chargepower` | Maximum allowed charge power (W) |
+| `/bms/info/dischargepower` | Maximum allowed discharge power (W) |
+| `/bms/info/soc` | State of charge (%) |
+| `/bms/info/current` | Pack current (A) |
+| `/bms/info/packvoltage` | Pack voltage (V) |
+| `/bms/info/umin` | Minimum cell voltage (mV) |
+| `/bms/info/umax` | Maximum cell voltage (mV) |
+
+The script also sets a last-will on `/bms/info/chargepower` and `/bms/info/dischargepower` of 0, so charging and discharging stop safely if the script exits. If any module stops sending counter updates the script sets charge and discharge power limits to 0 as an additional safety measure.
+
+# MQTT Math
+The script `battery-control/mqtt_math.py` allows you to define arithmetic expressions over MQTT topic values and publish the results to new topics. This is useful for combining values from multiple sources, e.g. summing the power from multiple inverters.
+
+Configure `mqtt_math` in `config.json` under the `mqtt_math` key. Each `aliases` entry maps a topic (with an optional JSON `key` path) to a variable name. Each `calculations` entry defines an `expression` using those variable names and a `result_topic` to publish to. Topics that have not yet been received are assumed to be 0.
+
 # Cloudy stuff
 If you run a web server with a database you can deploy some simple php scripts provided in the server-side directory. index.php contains commands to set up your database. You probably want to play with display.php to show what you want.
 Python script submitToLogger.py sends the data to your web server via https. Set the web server URI in config.json. I use a static key for minimalistic access control that is sent along with the data every time. The server only stores a hash of that key. Please set this up in config.inc.php
@@ -78,27 +107,45 @@ The script sends the counter data from above and merges battery power into the J
 ![](images/web-interface.png)
 
 ## Deye Dummy Cloud (Python)
-Für Deye Mikro-Wechselrichter gibt es jetzt ein Python-Skript als lokalen Cloud-Ersatz unter `battery-control/deye_dummycloud.py`.
-Es akzeptiert die Logger-Verbindung standardmäßig auf TCP-Port `10000`, beantwortet Heartbeat/Handshake/Data-Pakete und dekodiert Mikroinverter-Daten.
+`battery-control/deye_dummycloud.py` acts as a local cloud replacement for Deye micro-inverters. The inverter's WiFi logger normally calls home to Deye's cloud servers; by redirecting it to this script (e.g. via a DNS override or router rule) you keep all data local.
+
+The script accepts the logger's TCP connection, responds to handshake, heartbeat, WiFi, and data packets, and decodes micro-inverter readings.
 
 Start:
 
     python3 battery-control/deye_dummycloud.py
 
-Optionale Umgebungsvariablen:
+Configure via the `deye_dummycloud` key in `battery-control/config.json`:
 
-- `PORT` (Default `10000`)
-- `BIND_HOST` (Default `127.0.0.1`, z.B. `0.0.0.0` für Zugriff aus dem LAN)
-- `LOGLEVEL` (Default `INFO`)
-- `MQTT_BROKER_URL` (optional, z.B. `mqtt://broker.local`)
-- `MQTT_USERNAME` / `MQTT_PASSWORD` (optional)
+| Key | Default | Description |
+|---|---|---|
+| `port` | `10000` | TCP port to listen on |
+| `bind_host` | `127.0.0.1` | Bind address (`0.0.0.0` to accept LAN connections) |
+| `loglevel` | `INFO` | Log verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
+| `mqtt_username` | *(unset)* | Optional MQTT username |
+| `mqtt_password` | *(unset)* | Optional MQTT password |
 
-Bei gesetztem MQTT-Broker werden dekodierte Daten unter `deye-dummycloud/<loggerSerial>/...` publiziert.
+The MQTT broker is taken from the global `broker` section of `config.json` (shared with all other scripts).
+
+When an MQTT broker is configured, decoded data is published under `deye-dummycloud/<loggerSerial>/`:
+
+| Topic | Description |
+|---|---|
+| `raw` | Full decoded data as JSON |
+| `pv/<n>/v` | PV string voltage (V) |
+| `pv/<n>/i` | PV string current (A) |
+| `pv/<n>/w` | PV string power (W) |
+| `pv/<n>/kWh_today` | PV string energy today (kWh, retained) |
+| `pv/<n>/kWh_total` | PV string lifetime energy (kWh, retained) |
+| `grid/active_power_w` | Grid feed-in power (W) |
+| `grid/v` | Grid voltage (V) |
+| `grid/hz` | Grid frequency (Hz) |
+| `grid/kWh_today` | Grid energy today (kWh, retained) |
+| `grid/kWh_total` | Grid lifetime energy (kWh, retained) |
 
 # Disclaimer
 As always things I present are somewhat dangerous and you repeat them at your own risk. In terms of safety the system has some shortcomings
 - It is located in the living area in a wooden desk
-- There is no BMS that throttles charging when one cell goes out of check
 - There is no temperature surveillance of the battery
 
 Things you want to think about and that I will change in the future as well.

@@ -54,6 +54,11 @@
 		"apitype": "tibber",
 		"apikey": "your tibber key"
 	},
+	"deye_dummycloud": {
+		"port": 10000,
+		"bind_host": "0.0.0.0",
+		"loglevel": "INFO"
+	},
 	"mqtt_math": {
 		"aliases": [ {
 				"topic": "deye-dummycloud/3851343667/grid/active_power_w",

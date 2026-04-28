@@ -97,7 +97,7 @@ def on_message(client, userdata, msg):
     if entries is None:
         return
 
-    updated = False
+    updated_aliases = set()
     for alias, key in entries:
         if key:
             number = parse_json_value(msg.payload, key)
@@ -107,17 +107,19 @@ def on_message(client, userdata, msg):
             continue
 
         userdata['values'][alias] = number
-        updated = True
+        updated_aliases.add(alias)
 
-    if not updated:
+    if not updated_aliases:
         return
 
     for calculation in userdata['calculations']:
-        if not calculation['required_aliases'].issubset(userdata['values'].keys()):
+        if not calculation['required_aliases'].intersection(updated_aliases):
             continue
 
+        values = {alias: userdata['values'].get(alias, 0.0)
+                  for alias in calculation['required_aliases']}
         try:
-            result = safe_eval_expression(calculation['expression'], userdata['values'])
+            result = safe_eval_expression(calculation['expression'], values)
             client.publish(calculation['result_topic'], str(result))
         except (KeyError, ValueError, SyntaxError) as ex:
             logger.warning(
