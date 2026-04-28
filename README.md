@@ -34,7 +34,7 @@ Most of all though it sends JSON encoded counter data via MQTT to a hard-coded M
 So finally we need to setup some low power Linux computer that runs most of the remaining software. I use a BeagleBone that comes with Debian Linux. All scripts are Python 3. You need python-serial and paho-mqtt for Python. Also the mosquitto MQTT broker. That is pretty much it. I have it located near my Ethernet switch to not have to rely on a wifi connection.
 
 # Charging the battery
-Now lets look into how we can put energy into our battery. I use an NMC battery that is well balanced and that I decided to run without BMS. That is not a brilliant idea and I don't recommend it and plan to change it. But somehow I have to explain the lack of any BMS communication in the scripts later. The battery has an easy SoC curve, it is 50.2V when full and about 40V when empty. By leaving some margin to these extremes I get away without the BMS.
+Now lets look into how we can put energy into our battery. I use an NMC battery. The battery has an easy SoC curve, it is 50.2V when full and about 40V when empty.
 
 Ok, charging, finally. I use a Manson HCS-3604 switch mode power supply, rated 60V, 15A. You can use any switch mode supply you can get ahold of as long as it provides the correct voltage and sufficient power AND can be controlled externally.
 
@@ -69,6 +69,30 @@ Inverter power is also governed by battery voltage. Power is ramped down to 0 as
 Since this storage system is AC coupled it can work with as many solar arrays as you like. For example I have 2 solar arrays and the battery can be charged from both. We loose some energy to conversion losses this way but are more flexible also in where we can put the storage system. It actually lives in my desk:
 
 ![](images/system.jpg)
+
+# BMS Integration
+The script `battery-control/oi_bms.py` integrates a CAN-bus BMS (Battery Management System) that uses the OpenInverter BMS protocol. It reads CAN frames from the BMS, decodes charge/discharge limits, state of charge, pack voltage, current, and individual cell voltages, and publishes them to MQTT.
+
+Configure the BMS in `config.json` under the `bms` key:
+
+| Key | Description |
+|---|---|
+| `can` | SocketCAN interface name (e.g. `can1`) |
+| `modulecount` | Number of BMS modules in the pack |
+
+Published MQTT topics:
+
+| Topic | Description |
+|---|---|
+| `/bms/info/chargepower` | Maximum allowed charge power (W) |
+| `/bms/info/dischargepower` | Maximum allowed discharge power (W) |
+| `/bms/info/soc` | State of charge (%) |
+| `/bms/info/current` | Pack current (A) |
+| `/bms/info/packvoltage` | Pack voltage (V) |
+| `/bms/info/umin` | Minimum cell voltage (mV) |
+| `/bms/info/umax` | Maximum cell voltage (mV) |
+
+The script also sets a last-will on `/bms/info/chargepower` and `/bms/info/dischargepower` of 0, so charging and discharging stop safely if the script exits. If any module stops sending counter updates the script sets charge and discharge power limits to 0 as an additional safety measure.
 
 # MQTT Math
 The script `battery-control/mqtt_math.py` allows you to define arithmetic expressions over MQTT topic values and publish the results to new topics. This is useful for combining values from multiple sources, e.g. summing the power from multiple inverters.
@@ -122,7 +146,6 @@ When an MQTT broker is configured, decoded data is published under `deye-dummycl
 # Disclaimer
 As always things I present are somewhat dangerous and you repeat them at your own risk. In terms of safety the system has some shortcomings
 - It is located in the living area in a wooden desk
-- There is no BMS that throttles charging when one cell goes out of check
 - There is no temperature surveillance of the battery
 
 Things you want to think about and that I will change in the future as well.
