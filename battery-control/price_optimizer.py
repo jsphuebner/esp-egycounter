@@ -48,6 +48,12 @@
 #   /grid/evchargethresh          – charge EV below this price
 #   /grid/dischargethresh         – discharge storage above this price
 #
+# MQTT resilience
+#   The script uses paho loop_start() so the network loop runs in a background
+#   thread. reconnect_delay_set() causes automatic reconnection after any
+#   broker disconnect; on_connect re-subscribes and triggers a recalculation so
+#   that thresholds are always up to date after a reconnect.
+#
 # Config key: "price_optimizer" in config.json
 #   ev_capacity_kwh           total EV battery capacity (default 55)
 #   stat_capacity_kwh         stationary battery capacity (default 6)
@@ -99,14 +105,20 @@ def storage_capacity_kwh():
 
 
 def get_future_prices():
-    """Return a list of (marketprice_eur_mwh, start_timestamp_ms) for future slots."""
+    """Return a list of (marketprice_eur_mwh, start_timestamp_ms) for current and future slots.
+
+    A slot is included when its end_timestamp is strictly after now, meaning the
+    currently-active slot (which started in the past but has not yet ended) is
+    available as a potential recharge window.
+    """
     data = mqttVal('/spotmarket/pricelist', {})
     items = data.get('data', []) if isinstance(data, dict) else []
     now_ms = time.time() * 1000
     return [
         (float(item['marketprice']), int(item['start_timestamp']))
         for item in items
-        if item.get('start_timestamp', 0) >= now_ms
+        if item.get('end_timestamp', 0) > now_ms
+        and 'marketprice' in item and 'start_timestamp' in item
     ]
 
 
@@ -237,13 +249,43 @@ def on_message(client, userdata, msg):
         'pyPlc/fsm_state',
         'pyPlc/soc',
     ):
-        calculate_thresholds()
+        try:
+            calculate_thresholds()
+        except Exception as exc:
+            print(f'Error in calculate_thresholds (on_message): {exc}')
         last_recalc = time.time()
+
+
+def on_connect(client, userdata, flags, rc):
+    """Re-subscribe and recalculate after every (re-)connection."""
+    if rc != 0:
+        print(f'MQTT connect failed with code {rc}')
+        return
+    print('MQTT connected')
+    for topic in SUBSCRIBE_TOPICS:
+        client.subscribe(topic)
+    try:
+        calculate_thresholds()
+    except Exception as exc:
+        print(f'Error in calculate_thresholds (on_connect): {exc}')
 
 
 def mqttVal(key, default=0):
     return mqttData.get(key, default)
 
+
+SUBSCRIBE_TOPICS = (
+    '/spotmarket/pricelist',
+    '/forecast/pv_energy_tomorrow',
+    '/forecast/wind_factor',
+    '/forecast/season',
+    'pyPlc/fsm_state',
+    'pyPlc/soc',
+    'pyPlc/soclimit',
+    'pyPlc/target_current',
+    'pyPlc/charger_voltage',
+    '/bms/info/chargepower',
+)
 
 with open('config.json') as f:
     config = json.load(f)
@@ -258,33 +300,25 @@ roundtrip_efficiency = float(opt_cfg.get('roundtrip_efficiency', 0.8))
 
 client = mqtt.Client(client_id='price_optimizer')
 client.on_message = on_message
+client.on_connect = on_connect
+client.reconnect_delay_set(min_delay=1, max_delay=30)
 client.connect(
     config['broker']['address'],
     config['broker'].get('port', 1883),
     config['broker'].get('keepalive', 60),
 )
 
-for topic in (
-    '/spotmarket/pricelist',
-    '/forecast/pv_energy_tomorrow',
-    '/forecast/wind_factor',
-    '/forecast/season',
-    'pyPlc/fsm_state',
-    'pyPlc/soc',
-    'pyPlc/soclimit',
-    'pyPlc/target_current',
-    'pyPlc/charger_voltage',
-    '/bms/info/chargepower',
-):
-    client.subscribe(topic)
-
 mqttData = {}
 last_recalc = 0
 
+client.loop_start()
+
 while True:
-    client.loop(timeout=0.1)
     if time.time() - last_recalc > RECALC_INTERVAL:
-        calculate_thresholds()
+        try:
+            calculate_thresholds()
+        except Exception as exc:
+            print(f'Error in calculate_thresholds (timer): {exc}')
         last_recalc = time.time()
     time.sleep(10)
 

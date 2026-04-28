@@ -43,8 +43,9 @@ Algorithm:
     1. Estimate current stored energy = capacity - energy_still_needed.
     2. Domestic load will drain the battery regardless; subtract it from stored energy.
     3. Net kWh that must be bought back = max(0, stored - domestic_drain).
-    4. Find the cheapest N future hours to cover net_recharge_kwh and use the Nth price
-       as the discharge threshold.
+    4. Find the cheapest N slots to cover net_recharge_kwh; the current (active) slot is
+       included because it is still available for recharging.  Use the Nth slot price as
+       the discharge threshold.
     When tomorrow's prices are very cheap (e.g. −1 €/MWh) the threshold drops
     accordingly, so energy is discharged freely today.
   - Charge threshold (summer, sufficient PV forecast): set to -9999 to suppress grid charging
@@ -55,6 +56,10 @@ Algorithm:
     The threshold is further capped at discharge_thresh × roundtrip_efficiency: if the
     cheapest available charge price exceeds this limit the stored energy could not be
     recouped after losses, so grid charging is suppressed automatically.
+
+MQTT resilience: the script uses paho loop_start() so the network loop runs in a background
+thread independent of the main sleep.  reconnect_delay_set() triggers automatic reconnection
+after any broker disconnect; on_connect re-subscribes and recalculates thresholds immediately.
 
 Configure it in config.json under "price_optimizer":
 - ev_capacity_kwh            EV battery capacity in kWh (default 55)
