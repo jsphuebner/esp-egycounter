@@ -10,7 +10,7 @@ target:
 repos:
   poky:
     url: "https://git.yoctoproject.org/poky"
-    refspec: scarthgap
+    refspec: kirkstone
     layers:
       meta:
       meta-poky:
@@ -18,7 +18,7 @@ repos:
 
   meta-openembedded:
     url: "https://github.com/openembedded/meta-openembedded.git"
-    refspec: scarthgap
+    refspec: kirkstone
     layers:
       meta-oe:
       meta-networking:
@@ -26,7 +26,7 @@ repos:
 
   meta-ti:
     url: "https://git.yoctoproject.org/meta-ti"
-    refspec: scarthgap
+    refspec: kirkstone
     layers:
       meta-ti-bsp:
 

@@ -1,7 +1,6 @@
 SUMMARY = "Adafruit BBIO library for BeagleBone"
 HOMEPAGE = "https://github.com/adafruit/adafruit-beaglebone-io-python"
-LICENSE = "MIT"
-LIC_FILES_CHKSUM = "file://PKG-INFO;beginline=1;endline=20;md5=6ec4267df2bb8dfecab4f3f50a751faf"
+LICENSE = "CLOSED"
 
 inherit pypi setuptools3
 

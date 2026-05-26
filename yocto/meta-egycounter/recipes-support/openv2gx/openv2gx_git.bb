@@ -1,7 +1,6 @@
 SUMMARY = "OpenV2Gx EXI decoder/encoder"
 HOMEPAGE = "https://github.com/uhi22/OpenV2Gx"
-LICENSE = "MIT"
-LIC_FILES_CHKSUM = "file://LICENSE;md5=d41d8cd98f00b204e9800998ecf8427e"
+LICENSE = "CLOSED"
 
 inherit cmake pkgconfig
 
