@@ -1,0 +1,45 @@
+header:
+  version: 14
+
+machine: beaglebone-yocto
+distro: egycounter-debian
+
+target:
+  - egycounter-image
+
+repos:
+  poky:
+    url: "https://git.yoctoproject.org/poky"
+    refspec: scarthgap
+    layers:
+      meta:
+      meta-poky:
+      meta-yocto-bsp:
+
+  meta-openembedded:
+    url: "https://github.com/openembedded/meta-openembedded.git"
+    refspec: scarthgap
+    layers:
+      meta-oe:
+      meta-networking:
+      meta-python:
+
+  meta-ti:
+    url: "https://git.yoctoproject.org/meta-ti"
+    refspec: scarthgap
+    layers:
+      meta-ti-bsp:
+
+  meta-debian:
+    url: "https://github.com/meta-debian/meta-debian.git"
+    refspec: kirkstone
+    layers:
+      .
+
+  meta-egycounter:
+    path: meta-egycounter
+
+local_conf_header:
+  egycounter-common: |
+    PACKAGE_CLASSES = "package_deb"
+    EXTRA_IMAGE_FEATURES += "package-management"
