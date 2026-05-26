@@ -34,7 +34,7 @@ repos:
     url: "https://github.com/meta-debian/meta-debian.git"
     refspec: kirkstone
     layers:
-      .
+      meta-debian:
 
   meta-egycounter:
     path: meta-egycounter
