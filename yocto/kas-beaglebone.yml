@@ -29,6 +29,7 @@ repos:
     branch: kirkstone
     layers:
       meta-arm:
+      meta-arm-toolchain:
 
   meta-ti:
     url: "https://git.yoctoproject.org/meta-ti"
