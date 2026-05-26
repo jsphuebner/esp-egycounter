@@ -10,7 +10,7 @@ target:
 repos:
   poky:
     url: "https://git.yoctoproject.org/poky"
-    refspec: kirkstone
+    branch: kirkstone
     layers:
       meta:
       meta-poky:
@@ -18,7 +18,7 @@ repos:
 
   meta-openembedded:
     url: "https://github.com/openembedded/meta-openembedded.git"
-    refspec: kirkstone
+    branch: kirkstone
     layers:
       meta-oe:
       meta-networking:
@@ -26,15 +26,9 @@ repos:
 
   meta-ti:
     url: "https://git.yoctoproject.org/meta-ti"
-    refspec: kirkstone
+    branch: kirkstone
     layers:
       meta-ti-bsp:
-
-  meta-debian:
-    url: "https://github.com/meta-debian/meta-debian.git"
-    refspec: kirkstone
-    layers:
-      meta-debian:
 
   meta-egycounter:
     path: meta-egycounter
