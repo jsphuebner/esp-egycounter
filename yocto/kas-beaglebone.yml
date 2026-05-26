@@ -24,6 +24,12 @@ repos:
       meta-networking:
       meta-python:
 
+  meta-arm:
+    url: "https://git.yoctoproject.org/meta-arm"
+    branch: kirkstone
+    layers:
+      meta-arm:
+
   meta-ti:
     url: "https://git.yoctoproject.org/meta-ti"
     branch: kirkstone
