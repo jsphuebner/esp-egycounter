@@ -58,8 +58,6 @@ def regulate(ptotal):
     v2gSpnt = calculateNetzero(ptotal)
     v2gSpnt = calculateSpotmarket(v2gSpnt)
     client.publish("/bidi/setpoint/power", -v2gSpnt)
-    if '/grid/evsethresh' in mqttData and '/spotmarket/pricenow' in mqttData:
-        client.publish("/evse/enable", 1 if mqttVal('/spotmarket/pricenow') < mqttVal('/grid/evsethresh') else 0)
     
     if mqttVal('pyPlc/fsm_state') == "CurrentDemand":
         client.publish("/bidi/power", mqttVal("sungrow/signed_battery_power"))
@@ -94,7 +92,11 @@ def on_message(client, userdata, msg):
         val = msg.payload.decode("utf-8")
         if bool(re.match(r'^-?\d+[\.,]*\d*$', val)):
             val = float(val)
+        changed = msg.topic not in mqttData or mqttData[msg.topic] != val
         mqttData[msg.topic] = val
+        if changed and msg.topic in ('/spotmarket/pricenow', '/grid/evsethresh') \
+           and '/spotmarket/pricenow' in mqttData and '/grid/evsethresh' in mqttData:
+            client.publish("/evse/enable", 1 if mqttVal('/spotmarket/pricenow') < mqttVal('/grid/evsethresh') else 0)
 
 def mqttVal(key, default = 0):
     global mqttData
