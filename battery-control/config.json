@@ -88,5 +88,9 @@
 			}
 		],
 		"client_id": "mqtt_math"
+	},
+	"keba": {
+		"uri": "http://192.168.1.100/",
+		"output": {"type": "gpio", "port": "P9_16"}
 	}
 }

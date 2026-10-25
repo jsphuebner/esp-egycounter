@@ -92,7 +92,11 @@ def on_message(client, userdata, msg):
         val = msg.payload.decode("utf-8")
         if bool(re.match(r'^-?\d+[\.,]*\d*$', val)):
             val = float(val)
+        changed = msg.topic not in mqttData or mqttData[msg.topic] != val
         mqttData[msg.topic] = val
+        if changed and msg.topic in ('/spotmarket/pricenow', '/grid/evsethresh') \
+           and '/spotmarket/pricenow' in mqttData and '/grid/evsethresh' in mqttData:
+            client.publish("/evse/enable", 1 if mqttVal('/spotmarket/pricenow') < mqttVal('/grid/evsethresh') else 0)
 
 def mqttVal(key, default = 0):
     global mqttData
@@ -122,6 +126,7 @@ client.subscribe("pyPlc/target_current")
 client.subscribe("pyPlc/fsm_state")
 client.subscribe("/grid/chargethresh")
 client.subscribe("/grid/evchargethresh")
+client.subscribe("/grid/evsethresh")
 client.subscribe("/grid/dischargethresh")
 client.subscribe("/grid/chargepower")
 client.subscribe("/spotmarket/pricenow")
