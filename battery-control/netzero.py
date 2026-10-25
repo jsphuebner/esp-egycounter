@@ -17,11 +17,14 @@ def setControllerLimits():
     chargeLimit = config['netzero']['evpower']
     if mqttVal('pyPlc/fsm_state') == "CurrentDemand":
         chargeLimit = min(chargeLimit, mqttVal('pyPlc/target_current') * mqttVal('pyPlc/charger_voltage'))
+        dischargeLimit = config['netzero']['evpower']
         if mqttVal('evfull'):
             chargeLimit = 0
+        if mqttVal('evempty'):
+            dischargeLimit = 0
     else:
         chargeLimit = min(chargeLimit, mqttVal('/bms/info/chargepower'))
-    dischargeLimit = min(config['netzero']['evpower'], mqttVal('/bms/info/dischargepower'))
+        dischargeLimit = mqttVal('/bms/info/dischargepower')
                
     if mqttVal('sungrow/system_state') == "Forced Run":
         v2gController.setMinMax(-chargeLimit, dischargeLimit)
@@ -88,6 +91,10 @@ def on_message(client, userdata, msg):
             mqttData['evfull'] = True
         elif soc < (mqttVal('pyPlc/soclimit', 85) - 3):
             mqttData['evfull'] = False
+        if soc <= mqttVal('pyPlc/lowsoclimit', 25):
+            mqttData['evempty'] = True
+        elif soc > (mqttVal('pyPlc/lowsoclimit', 25) + 3):
+            mqttData['evempty'] = False
     else:
         val = msg.payload.decode("utf-8")
         if bool(re.match(r'^-?\d+[\.,]*\d*$', val)):
@@ -120,7 +127,7 @@ client.subscribe("/bms/info/utotal")
 client.subscribe("/bms/info/chargepower")
 client.subscribe("/bms/info/dischargepower")
 client.subscribe("pyPlc/soclimit")
-client.subscribe("pyPlc/soc")
+client.subscribe("pyPlc/lowsoclimit")
 client.subscribe("pyPlc/charger_voltage")
 client.subscribe("pyPlc/target_current")
 client.subscribe("pyPlc/fsm_state")
